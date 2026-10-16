@@ -2,23 +2,38 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import {
-  Play,
-  Pause,
-  RotateCcw,
-  Gauge,
-  Eye,
-  Layers,
-  Info,
-  Sparkles,
   Box,
-  Grid,
-  Cpu,
-  Sliders,
-  ChevronRight,
-  Disc,
-  Zap,
-  ArrowRightLeft
+  Grid3x3,
+  Layers,
+  Orbit,
+  Pause,
+  Play,
+  RotateCcw,
+  Sparkles
 } from 'lucide-react';
+
+function SquareRange({ min, max, step, value, label, onChange }) {
+  const pct = ((Number(value) - min) / (max - min)) * 100;
+  return (
+    <div className="relative flex h-8 items-center">
+      <span className="pointer-events-none absolute top-1/2 right-0 left-0 h-2 -translate-y-1/2 bg-[#d5dce3]" />
+      <span
+        className="pointer-events-none absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-[#fb6514]"
+        style={{ width: `calc(${pct / 100} * (100% - 16px) + 8px)` }}
+      />
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        aria-label={label}
+        onChange={onChange}
+        className="square-range relative z-10 h-8 w-full cursor-pointer"
+      />
+    </div>
+  );
+}
 
 // ============================================================================
 // MECHANICAL SPECIFICATION: 5-SPEED + REVERSE CONSTANT-MESH MANUAL GEARBOX
@@ -1363,440 +1378,381 @@ export default function GearboxSim({ theme = 'dark' }) {
     // Handled reactively via simParams + CSS backdrop
   }, [theme]);
 
-  const isDark = theme === 'dark';
   const currentGearObj = GEAR_DEFINITIONS[selectedGear] || GEAR_DEFINITIONS.N;
 
-  const panelClass = isDark
-    ? 'bg-slate-900/80 border-slate-700/70 text-slate-100'
-    : 'bg-white/85 border-slate-200/90 text-slate-900';
+  const sheet = {
+    panel: 'bg-white text-[#101828]',
+    idle: 'bg-[#eef1f4] text-[#101828] hover:bg-[#e2e7ec]',
+    chosen: 'bg-[#101828] text-white'
+  };
+  const hit =
+    'cursor-pointer text-base leading-snug focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fb6514]';
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div className="relative h-full w-full select-none overflow-hidden font-sans">
       {/* 3D WebGL Viewport */}
-      <div ref={mountRef} className="h-full w-full cursor-grab active:cursor-grabbing" />
-
-      {/* TOP-LEFT HUD: GEARBOX TITLE, TELEMETRY & ACTIVE GEAR FORMULA */}
       <div
-        className={`pointer-events-auto absolute left-4 top-4 z-10 w-80 rounded-2xl border p-4 shadow-2xl backdrop-blur-xl transition-colors ${panelClass}`}
-      >
-        <div className="flex items-center justify-between border-b border-slate-500/20 pb-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-orange-500 animate-pulse" />
-              <span className="text-[11px] font-bold uppercase tracking-widest text-orange-500">
-                5-Speed + R Constant-Mesh
-              </span>
-            </div>
-            <h1 className="mt-0.5 text-lg font-extrabold tracking-tight">
-              Manual Synchromesh Gearbox
+        ref={mountRef}
+        className="absolute inset-0 z-0 h-full w-full cursor-grab active:cursor-grabbing"
+      />
+
+      {/* =========================================================
+          TOP-LEFT: GEARBOX TELEMETRY & H-PATTERN SHIFTER SELECTOR
+      ========================================================= */}
+      <div className="pointer-events-none absolute top-4 left-4 z-10 max-h-[calc(100%-11rem)] w-[min(28rem,calc(100%-2rem))] overflow-y-auto max-[720px]:max-h-[50%] max-[720px]:w-[calc(100%-2rem)]">
+        <section
+          aria-label="5-Speed Manual Gearbox"
+          className={`pointer-events-auto flex flex-col gap-5 p-5 ${sheet.panel}`}
+          style={{ colorScheme: 'light' }}
+        >
+          <div className="flex items-baseline justify-between gap-4">
+            <h1 className="m-0 text-[1.75rem] font-semibold leading-none tracking-[-0.03em]">
+              5-Speed Gearbox
             </h1>
-          </div>
-          <div
-            className="flex h-12 w-12 items-center justify-center rounded-xl border-2 font-mono text-2xl font-black shadow-inner"
-            style={{
-              borderColor: currentGearObj.color,
-              color: currentGearObj.color,
-              backgroundColor: isDark ? 'rgba(15,23,42,0.8)' : 'rgba(248,250,252,0.9)'
-            }}
-          >
-            {currentGearObj.short}
-          </div>
-        </div>
-
-        {/* Live Shaft RPM & Torque Multiplication Readouts */}
-        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-          <div className="rounded-xl bg-sky-500/10 border border-sky-500/25 p-2.5">
-            <div className="text-[10px] font-semibold uppercase text-sky-400">
-              Input Shaft (Poros Input)
-            </div>
-            <div className="mt-0.5 font-mono text-base font-bold text-sky-300">
-              {telemetry.inputRpm} <span className="text-[11px] font-normal">RPM</span>
-            </div>
-            <div className="text-[10px] opacity-75">Torsi Mesin: {engineTorqueNm} Nm</div>
+            <p
+              className="m-0 text-[1.75rem] font-semibold leading-none tracking-[-0.03em] tabular-nums text-[#fb6514]"
+              aria-label={`Gigi aktif ${currentGearObj.label}`}
+            >
+              {currentGearObj.short === 'N'
+                ? 'N · Free'
+                : `${currentGearObj.short} · ${currentGearObj.ratioText.split(' ')[0]}:1`}
+            </p>
           </div>
 
-          <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/25 p-2.5">
-            <div className="text-[10px] font-semibold uppercase text-emerald-400">
-              Output Shaft (Driveshaft)
-            </div>
-            <div className="mt-0.5 font-mono text-base font-bold text-emerald-300">
-              {telemetry.outputRpm} <span className="text-[11px] font-normal">RPM</span>
-            </div>
-            <div className="text-[10px] opacity-75">
-              Torsi Out: <strong className="text-emerald-300">{telemetry.outputTorqueNm} Nm</strong>
-            </div>
-          </div>
+          <p className="m-0 text-base leading-relaxed">{currentGearObj.desc}</p>
 
-          <div className="rounded-xl bg-amber-500/10 border border-amber-500/25 p-2.5">
-            <div className="text-[10px] font-semibold uppercase text-amber-400">
-              Countershaft (Layshaft)
+          {/* Interactive H-Pattern Gear Selector (1 - 3 - 5 / N / 2 - 4 - R) */}
+          <div className="flex flex-col gap-1.5" role="group" aria-label="H-Pattern Gear Selector">
+            <div className="grid grid-cols-3 gap-1.5">
+              {['1', '3', '5'].map((g) => {
+                const active = selectedGear === g;
+                return (
+                  <button
+                    key={g}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => handleSelectGear(g)}
+                    className={`py-2.5 text-center text-base font-semibold tabular-nums ${hit} ${
+                      active ? 'bg-[#fb6514] text-[#101828]' : sheet.idle
+                    }`}
+                  >
+                    Gigi {g}
+                  </button>
+                );
+              })}
             </div>
-            <div className="mt-0.5 font-mono text-sm font-bold text-amber-300">
-              {telemetry.counterRpm} <span className="text-[10px] font-normal">RPM</span>
-            </div>
-            <div className="text-[10px] opacity-75">Rasio Kepala: 20T → 31T</div>
-          </div>
 
-          <div className="rounded-xl bg-orange-500/10 border border-orange-500/25 p-2.5">
-            <div className="text-[10px] font-semibold uppercase text-orange-400">
-              Rasio & Est. Kecepatan
-            </div>
-            <div className="mt-0.5 font-mono text-sm font-bold text-orange-300">
-              {currentGearObj.ratioText.split(' ')[0]} : 1
-            </div>
-            <div className="text-[10px] opacity-75">
-              Speed: <strong>{telemetry.roadSpeedKmh} km/j</strong>
-            </div>
-          </div>
-        </div>
-
-        {/* Active Gear Explanation Box */}
-        <div className="mt-3 rounded-xl bg-slate-500/10 p-2.5 text-xs leading-relaxed">
-          <div className="flex items-center justify-between font-bold" style={{ color: currentGearObj.color }}>
-            <span>{currentGearObj.label}</span>
-            <span className="font-mono text-[11px]">{currentGearObj.ratioText}</span>
-          </div>
-          <p className="mt-1 text-[11px] opacity-85">{currentGearObj.desc}</p>
-        </div>
-      </div>
-
-      {/* BOTTOM-LEFT HUD: INTERACTIVE H-PATTERN SHIFTER GATE & CLUTCH PEDAL */}
-      <div
-        className={`pointer-events-auto absolute bottom-4 left-4 z-10 w-80 rounded-2xl border p-4 shadow-2xl backdrop-blur-xl transition-colors ${panelClass}`}
-      >
-        <div className="flex items-center justify-between mb-2">
-          <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-orange-500">
-            <ArrowRightLeft className="h-3.5 w-3.5" /> H-Pattern Shifter Gate
-          </span>
-          <span className="text-[10px] opacity-70">Shortcut: Key 1-5, R, N</span>
-        </div>
-
-        {/* Visual H-Pattern Gate Layout */}
-        <div className="relative rounded-xl bg-slate-950/75 border border-slate-700/70 p-3">
-          {/* H-Gate Track Lines */}
-          <div className="pointer-events-none absolute inset-x-10 top-1/2 h-1 -translate-y-1/2 bg-slate-700" />
-          <div className="pointer-events-none absolute left-[22%] top-5 bottom-5 w-1 -translate-x-1/2 bg-slate-700" />
-          <div className="pointer-events-none absolute left-1/2 top-5 bottom-5 w-1 -translate-x-1/2 bg-slate-700" />
-          <div className="pointer-events-none absolute left-[78%] top-5 bottom-5 w-1 -translate-x-1/2 bg-slate-700" />
-
-          {/* Top Row: 1 - 3 - 5 */}
-          <div className="relative z-10 grid grid-cols-3 place-items-center gap-2">
-            {['1', '3', '5'].map((g) => {
-              const active = selectedGear === g;
-              return (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => handleSelectGear(g)}
-                  className={`flex h-10 w-14 flex-col items-center justify-center rounded-lg border font-mono text-sm font-black transition-all cursor-pointer ${
-                    active
-                      ? 'scale-105 bg-orange-500 text-slate-950 border-orange-300 shadow-lg shadow-orange-500/40'
-                      : 'bg-slate-800/90 text-slate-200 border-slate-600 hover:border-orange-400'
-                  }`}
-                >
-                  <span>{g}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Center Row: Neutral Bar */}
-          <div className="relative z-10 my-2.5 flex justify-center">
             <button
               type="button"
+              aria-pressed={selectedGear === 'N'}
               onClick={() => handleSelectGear('N')}
-              className={`w-full rounded-md border py-1 font-mono text-xs font-extrabold tracking-widest transition-all cursor-pointer ${
-                selectedGear === 'N'
-                  ? 'bg-sky-400 text-slate-950 border-sky-200 shadow-md shadow-sky-500/30'
-                  : 'bg-slate-900/90 text-slate-400 border-slate-700 hover:text-white'
+              className={`w-full py-2 text-center text-base font-semibold ${hit} ${
+                selectedGear === 'N' ? 'bg-[#fb6514] text-[#101828]' : sheet.idle
               }`}
             >
-              NEUTRAL (N)
+              Neutral (N)
             </button>
-          </div>
 
-          {/* Bottom Row: 2 - 4 - R */}
-          <div className="relative z-10 grid grid-cols-3 place-items-center gap-2">
-            {['2', '4', 'R'].map((g) => {
-              const active = selectedGear === g;
-              const isRev = g === 'R';
-              return (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => handleSelectGear(g)}
-                  className={`flex h-10 w-14 flex-col items-center justify-center rounded-lg border font-mono text-sm font-black transition-all cursor-pointer ${
-                    active
-                      ? isRev
-                        ? 'scale-105 bg-red-500 text-white border-red-300 shadow-lg shadow-red-500/40'
-                        : 'scale-105 bg-orange-500 text-slate-950 border-orange-300 shadow-lg shadow-orange-500/40'
-                      : isRev
-                      ? 'bg-red-950/70 text-red-300 border-red-800/70 hover:border-red-400'
-                      : 'bg-slate-800/90 text-slate-200 border-slate-600 hover:border-orange-400'
-                  }`}
-                >
-                  <span>{g}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Clutch Control & Auto-Synchromesh Toggle */}
-        <div className="mt-3 space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold">Kopling (Clutch Engagement)</span>
-            <span className="font-mono font-bold text-orange-400">
-              {Math.round(clutchEngagement * 100)}%
-            </span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.02"
-            value={clutchEngagement}
-            onChange={(e) => setClutchEngagement(parseFloat(e.target.value))}
-            className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-700 accent-orange-500"
-          />
-          <div className="flex items-center justify-between gap-2 pt-1">
-            <button
-              type="button"
-              onMouseDown={() => setClutchEngagement(0.0)}
-              onMouseUp={() => setClutchEngagement(1.0)}
-              onMouseLeave={() => setClutchEngagement(1.0)}
-              className="flex-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 px-2.5 py-1.5 text-[11px] font-bold text-slate-200 cursor-pointer"
-            >
-              Tahan Kopling (Space)
-            </button>
-            <button
-              type="button"
-              onClick={() => setAutoClutchOnShift((v) => !v)}
-              className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold cursor-pointer ${
-                autoClutchOnShift
-                  ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400'
-              }`}
-            >
-              Auto-Clutch: {autoClutchOnShift ? 'ON' : 'OFF'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* TOP-RIGHT CONTROL PANEL: ENGINE INPUT, VIEWPORT & LAYER CONTROLS */}
-      <div
-        className={`pointer-events-auto absolute right-4 top-4 z-10 max-h-[calc(100vh-2rem)] w-80 overflow-y-auto rounded-2xl border p-4 shadow-2xl backdrop-blur-xl transition-colors ${panelClass}`}
-      >
-        <div className="flex items-center justify-between border-b border-slate-500/20 pb-3">
-          <div className="flex items-center gap-2">
-            <Sliders className="h-4 w-4 text-orange-500" />
-            <span className="text-xs font-bold uppercase tracking-wider">
-              Kontrol Transmisi & Visual
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setIsPlaying((p) => !p)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-slate-950 hover:bg-orange-400 cursor-pointer"
-              title={isPlaying ? 'Pause' : 'Play'}
-            >
-              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedGear('1');
-                setEngineRpm(2200);
-                setClutchEngagement(1.0);
-                setExploded(0.0);
-                setCutawayMode(true);
-                if (cameraPresetRef.current) cameraPresetRef.current('iso');
-              }}
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-500/20 hover:bg-slate-500/30 cursor-pointer"
-              title="Reset"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Engine Input RPM & Input Torque Sliders */}
-        <div className="mt-3 space-y-3 border-b border-slate-500/20 pb-3 text-xs">
-          <div>
-            <div className="flex justify-between font-semibold">
-              <span>Putaran Mesin (Input RPM)</span>
-              <span className="font-mono font-bold text-sky-400">{engineRpm} RPM</span>
+            <div className="grid grid-cols-3 gap-1.5">
+              {['2', '4', 'R'].map((g) => {
+                const active = selectedGear === g;
+                return (
+                  <button
+                    key={g}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => handleSelectGear(g)}
+                    className={`py-2.5 text-center text-base font-semibold tabular-nums ${hit} ${
+                      active ? 'bg-[#fb6514] text-[#101828]' : sheet.idle
+                    }`}
+                  >
+                    {g === 'R' ? 'Reverse (R)' : `Gigi ${g}`}
+                  </button>
+                );
+              })}
             </div>
-            <input
-              type="range"
-              min="600"
-              max="7000"
-              step="50"
-              value={engineRpm}
-              onChange={(e) => setEngineRpm(parseInt(e.target.value, 10))}
-              className="mt-1 h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-700 accent-sky-400"
-            />
           </div>
 
-          <div>
-            <div className="flex justify-between font-semibold">
-              <span>Torsi Input Mesin</span>
-              <span className="font-mono font-bold text-amber-400">{engineTorqueNm} Nm</span>
-            </div>
-            <input
-              type="range"
-              min="100"
-              max="600"
-              step="10"
-              value={engineTorqueNm}
-              onChange={(e) => setEngineTorqueNm(parseInt(e.target.value, 10))}
-              className="mt-1 h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-700 accent-amber-400"
-            />
-          </div>
-        </div>
-
-        {/* Render Modes */}
-        <div className="mt-3 border-b border-slate-500/20 pb-3">
-          <div className="mb-2 text-[11px] font-bold uppercase tracking-wider opacity-75">
-            Mode Render 3D
-          </div>
-          <div className="grid grid-cols-2 gap-1.5 text-xs">
+          {/* 2x2 Telemetry Readouts */}
+          <div className="grid grid-cols-2 gap-2">
             {[
-              { id: 'realistic', label: 'Realistic PBR' },
-              { id: 'shaded_wire', label: 'CAD Wire+Shade' },
-              { id: 'raw', label: 'Clay Studio' },
-              { id: 'wireframe', label: 'Blueprint Wire' }
-            ].map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => setRenderMode(m.id)}
-                className={`rounded-lg border px-2.5 py-1.5 font-semibold transition-all cursor-pointer ${
-                  renderMode === m.id
-                    ? 'bg-orange-500 text-slate-950 border-orange-400'
-                    : 'bg-slate-500/10 border-slate-500/20 hover:bg-slate-500/20'
-                }`}
-              >
-                {m.label}
-              </button>
+              {
+                label: 'Poros input',
+                value: isPlaying ? telemetry.inputRpm : 0,
+                unit: 'rpm'
+              },
+              {
+                label: 'Poros output',
+                value: isPlaying ? telemetry.outputRpm : 0,
+                unit: 'rpm'
+              },
+              {
+                label: 'Torsi output',
+                value: isPlaying ? telemetry.outputTorqueNm : 0,
+                unit: 'Nm'
+              },
+              {
+                label: 'Countershaft / Speed',
+                value: isPlaying ? `${Math.abs(telemetry.counterRpm)}` : '0',
+                unit: `rpm · ${isPlaying ? Math.abs(telemetry.roadSpeedKmh) : 0} km/j`
+              }
+            ].map((item) => (
+              <div key={item.label} className="bg-[#eef1f4] px-3 py-2">
+                <span className="block text-base">{item.label}</span>
+                <span className="block text-base font-semibold tabular-nums text-[#fb6514]">
+                  {item.value}
+                  <span className="ml-1 font-normal text-[#101828]">{item.unit}</span>
+                </span>
+              </div>
             ))}
           </div>
-        </div>
+        </section>
+      </div>
 
-        {/* Section Cutaway, Casing Opacity & Exploded View */}
-        <div className="mt-3 space-y-2.5 border-b border-slate-500/20 pb-3 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold">Bukaan Casing (Cutaway 180°)</span>
+      {/* =========================================================
+          TOP-RIGHT: RENDER MODE & COMPONENT VISIBILITY
+      ========================================================= */}
+      <div className="pointer-events-none absolute top-4 right-4 z-10 w-[min(20rem,calc(100%-2rem))] max-[720px]:top-auto max-[720px]:bottom-44 max-[720px]:left-4 max-[720px]:right-4 max-[720px]:max-h-[28%] max-[720px]:w-auto max-[720px]:overflow-y-auto">
+        <section
+          aria-label="Gearbox view"
+          className={`pointer-events-auto flex flex-col gap-5 p-5 ${sheet.panel}`}
+          style={{ colorScheme: 'light' }}
+        >
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Render mode">
+            {[
+              { id: 'realistic', label: 'Realistic', icon: Sparkles },
+              { id: 'raw', label: 'Shaded', icon: Box },
+              { id: 'wireframe', label: 'Wireframe', icon: Grid3x3 },
+              { id: 'shaded_wire', label: 'Shaded wire', icon: Layers }
+            ].map((mode) => {
+              const active = renderMode === mode.id;
+              const Icon = mode.icon;
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setRenderMode(mode.id)}
+                  className={`flex w-full items-center gap-2 px-3 py-3 text-left ${hit} ${
+                    active ? 'bg-[#fb6514] text-[#101828]' : sheet.idle
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {mode.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Visible parts">
             <button
               type="button"
-              onClick={() => setCutawayMode((c) => !c)}
-              className={`rounded-lg px-3 py-1 font-bold cursor-pointer ${
-                cutawayMode
-                  ? 'bg-orange-500 text-slate-950'
-                  : 'bg-slate-500/20 text-slate-300'
+              aria-pressed={cutawayMode}
+              onClick={() => setCutawayMode(!cutawayMode)}
+              className={`col-span-2 px-3 py-3 text-left ${hit} ${
+                cutawayMode ? sheet.chosen : sheet.idle
               }`}
             >
-              {cutawayMode ? 'OPEN' : 'CLOSED'}
+              Cutaway
             </button>
-          </div>
-
-          <div>
-            <div className="flex justify-between font-semibold">
-              <span>Transparansi Casing</span>
-              <span className="font-mono">{Math.round(casingOpacity * 100)}%</span>
-            </div>
-            <input
-              type="range"
-              min="0.05"
-              max="0.9"
-              step="0.05"
-              value={casingOpacity}
-              onChange={(e) => setCasingOpacity(parseFloat(e.target.value))}
-              className="mt-1 h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-700 accent-orange-500"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between font-semibold">
-              <span>Exploded Assembly</span>
-              <span className="font-mono">{Math.round(exploded * 100)}%</span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.02"
-              value={exploded}
-              onChange={(e) => setExploded(parseFloat(e.target.value))}
-              className="mt-1 h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-700 accent-orange-500"
-            />
-          </div>
-        </div>
-
-        {/* Component Visibility Checkboxes */}
-        <div className="mt-3 border-b border-slate-500/20 pb-3 text-xs">
-          <div className="mb-2 text-[11px] font-bold uppercase tracking-wider opacity-75">
-            Visibilitas Komponen
-          </div>
-          <div className="grid grid-cols-2 gap-1.5">
             {[
-              { label: 'Aliran Torsi', val: showTorqueFlow, set: setShowTorqueFlow },
-              { label: 'Garpu & Rel Shift', val: showShiftMechanism, set: setShowShiftMechanism },
-              { label: 'Kopling & Flywheel', val: showClutchAssy, set: setShowClutchAssy },
-              { label: 'Casing Transmisi', val: showCasing, set: setShowCasing }
+              { label: 'Casing & housing', state: showCasing, setter: setShowCasing },
+              { label: 'Shift forks & rails', state: showShiftMechanism, setter: setShowShiftMechanism },
+              { label: 'Clutch & flywheel', state: showClutchAssy, setter: setShowClutchAssy },
+              { label: 'Torque flow', state: showTorqueFlow, setter: setShowTorqueFlow }
             ].map((item) => (
               <button
                 key={item.label}
                 type="button"
-                onClick={() => item.set((v) => !v)}
-                className={`flex items-center justify-between rounded-lg border px-2.5 py-1.5 font-medium cursor-pointer ${
-                  item.val
-                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                    : 'bg-slate-500/10 border-slate-500/20 opacity-60'
+                aria-pressed={item.state}
+                onClick={() => item.setter(!item.state)}
+                className={`px-3 py-3 text-left ${hit} ${item.state ? sheet.chosen : sheet.idle}`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* =========================================================
+          BOTTOM: HORIZONTAL SLIDER BAR & TRANSPORT CONTROLS
+      ========================================================= */}
+      <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-10 flex flex-col items-stretch justify-between gap-3 lg:flex-row lg:items-end">
+        <section
+          aria-label="Simulation controls"
+          className={`pointer-events-auto grid flex-1 grid-cols-1 gap-6 p-5 sm:grid-cols-2 xl:grid-cols-4 ${sheet.panel}`}
+          style={{ colorScheme: 'light' }}
+        >
+          {/* Column 1: Engine Input RPM */}
+          <div className="flex flex-col gap-2">
+            <p className="m-0 text-base">
+              <span className="font-semibold tabular-nums">{engineRpm}</span> rpm input
+            </p>
+            <SquareRange
+              min={600}
+              max={7000}
+              step={50}
+              value={engineRpm}
+              label="Input RPM"
+              onChange={(e) => setEngineRpm(Number(e.target.value))}
+            />
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 800, label: '800 idle' },
+                { value: 2200, label: '2200 cruise' },
+                { value: 4200, label: '4200 pull' },
+                { value: 6500, label: '6500 redline' }
+              ].map((preset) => (
+                <button
+                  key={preset.value}
+                  type="button"
+                  aria-pressed={engineRpm === preset.value}
+                  onClick={() => {
+                    setEngineRpm(preset.value);
+                    setIsPlaying(true);
+                  }}
+                  className={`px-2 py-1 ${hit} ${
+                    engineRpm === preset.value ? sheet.chosen : sheet.idle
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Column 2: Friction Clutch Engagement */}
+          <div className="flex flex-col gap-2">
+            <p className="m-0 text-base">
+              <span className="font-semibold tabular-nums">
+                {Math.round(clutchEngagement * 100)}%
+              </span>{' '}
+              kopling (clutch)
+            </p>
+            <SquareRange
+              min={0}
+              max={1}
+              step={0.02}
+              value={clutchEngagement}
+              label="Clutch engagement"
+              onChange={(e) => setClutchEngagement(Number(e.target.value))}
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onMouseDown={() => setClutchEngagement(0.0)}
+                onMouseUp={() => setClutchEngagement(1.0)}
+                onMouseLeave={() => setClutchEngagement(1.0)}
+                className={`px-2 py-1 ${hit} ${
+                  clutchEngagement < 0.2 ? sheet.chosen : sheet.idle
                 }`}
               >
-                <span>{item.label}</span>
-                <span className="h-2 w-2 rounded-full bg-current" />
+                Injak (Space)
               </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Camera Angle Presets */}
-        <div className="mt-3 text-xs">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider opacity-75">
-              Sudut Kamera
-            </span>
-            <button
-              type="button"
-              onClick={() => setAutoRotateCam((a) => !a)}
-              className={`rounded px-2 py-0.5 text-[10px] font-bold cursor-pointer ${
-                autoRotateCam ? 'bg-orange-500 text-slate-950' : 'bg-slate-500/20'
-              }`}
-            >
-              Auto-Orbit: {autoRotateCam ? 'ON' : 'OFF'}
-            </button>
-          </div>
-          <div className="grid grid-cols-4 gap-1.5">
-            {[
-              { id: 'iso', label: '3/4 Iso' },
-              { id: 'side', label: 'Samping' },
-              { id: 'top', label: 'Atas' },
-              { id: 'front', label: 'Kopling' }
-            ].map((cam) => (
               <button
-                key={cam.id}
                 type="button"
-                onClick={() => cameraPresetRef.current && cameraPresetRef.current(cam.id)}
-                className="rounded-lg bg-slate-500/15 hover:bg-slate-500/30 py-1.5 font-semibold cursor-pointer"
+                aria-pressed={autoClutchOnShift}
+                onClick={() => setAutoClutchOnShift((v) => !v)}
+                className={`px-2 py-1 ${hit} ${
+                  autoClutchOnShift ? sheet.chosen : sheet.idle
+                }`}
               >
-                {cam.label}
+                Auto-clutch {autoClutchOnShift ? 'ON' : 'OFF'}
               </button>
-            ))}
+            </div>
           </div>
+
+          {/* Column 3: Exploded View */}
+          <div className="flex flex-col gap-2">
+            <p className="m-0 text-base">
+              <span className="font-semibold tabular-nums">{Math.round(exploded * 100)}%</span>{' '}
+              exploded
+            </p>
+            <SquareRange
+              min={0}
+              max={1}
+              step={0.02}
+              value={exploded}
+              label="Exploded view"
+              onChange={(e) => setExploded(Number(e.target.value))}
+            />
+            <p className="m-0 flex flex-wrap gap-x-3 gap-y-1 text-base">
+              <span>Assembled</span>
+              <span>Separated</span>
+              <span>Exploded</span>
+            </p>
+          </div>
+
+          {/* Column 4: Casing Opacity */}
+          <div className="flex flex-col gap-2">
+            <p className="m-0 text-base">
+              <span className="font-semibold tabular-nums">
+                {Math.round(casingOpacity * 100)}%
+              </span>{' '}
+              solid
+            </p>
+            <SquareRange
+              min={0.05}
+              max={0.95}
+              step={0.02}
+              value={casingOpacity}
+              label="Casing opacity"
+              onChange={(e) => setCasingOpacity(Number(e.target.value))}
+            />
+            <p className="m-0 flex flex-wrap gap-x-3 gap-y-1 text-base">
+              <span>Clear</span>
+              <span>Glass</span>
+              <span>Solid</span>
+            </p>
+          </div>
+        </section>
+
+        {/* Transport Bar: Play / Pause, Orbit, Reset */}
+        <div className={`pointer-events-auto flex flex-wrap items-center gap-2 p-3 ${sheet.panel}`}>
+          <button
+            type="button"
+            onClick={() => setIsPlaying(!isPlaying)}
+            className={`inline-flex items-center gap-2 px-4 py-3 ${hit} ${
+              isPlaying ? 'bg-[#fb6514] text-[#101828]' : sheet.chosen
+            }`}
+          >
+            {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            {isPlaying ? 'Pause' : 'Play'}
+          </button>
+          <button
+            type="button"
+            aria-pressed={autoRotateCam}
+            onClick={() => setAutoRotateCam(!autoRotateCam)}
+            className={`inline-flex items-center gap-2 px-3 py-3 ${hit} ${
+              autoRotateCam ? sheet.chosen : sheet.idle
+            }`}
+          >
+            <Orbit className="h-4 w-4" />
+            Orbit
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedGear('1');
+              setEngineRpm(2200);
+              setClutchEngagement(1.0);
+              setExploded(0);
+              setCasingOpacity(0.24);
+              setCutawayMode(true);
+              setRenderMode('realistic');
+              setShowCasing(true);
+              setShowShiftMechanism(true);
+              setShowClutchAssy(true);
+              setShowTorqueFlow(true);
+              setAutoRotateCam(false);
+              if (cameraPresetRef.current) cameraPresetRef.current('iso');
+            }}
+            className={`inline-flex items-center gap-2 px-3 py-3 ${hit} ${sheet.idle}`}
+          >
+            <RotateCcw className="h-4 w-4" />
+            Reset
+          </button>
         </div>
       </div>
     </div>
