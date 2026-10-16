@@ -1,16 +1,33 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import V8Engine from './V8Engine.jsx';
 import JetEngine from './JetEngine.jsx';
 import FourStrokeEngine from './FourStrokeEngine.jsx';
 import DieselEngine from './DieselEngine.jsx';
 import TwoStrokeEngine from './TwoStrokeEngine.jsx';
-import { Cpu, Wind, Flame, Droplets, Repeat, Sun, Moon } from 'lucide-react';
+import RotaryEngine from './RotaryEngine.jsx';
+import Landing from './Landing.jsx';
+import { Cpu, Wind, Flame, Droplets, Repeat, Triangle, Sun, Moon } from 'lucide-react';
+
+const engines = [
+  { path: '/rotary', label: 'Rotary', icon: Triangle, Component: RotaryEngine },
+  { path: '/2-stroke', label: '2-stroke', icon: Repeat, Component: TwoStrokeEngine },
+  { path: '/diesel', label: 'Diesel', icon: Droplets, Component: DieselEngine },
+  { path: '/4-stroke', label: '4-stroke', icon: Flame, Component: FourStrokeEngine },
+  { path: '/v8', label: 'V8', icon: Cpu, Component: V8Engine },
+  { path: '/turbofan', label: 'Turbofan', icon: Wind, Component: JetEngine }
+];
 
 export default function App() {
-  const [activeEngine, setActiveEngine] = useState('two_stroke'); // 'two_stroke' | 'diesel' | 'four_stroke' | 'v8' | 'jet'
+  const { pathname } = useLocation();
+  const active = engines.find((engine) => engine.path === pathname);
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('engine_theme') || 'dark';
   });
+
+  useEffect(() => {
+    document.title = active ? `${active.label} · Erlangga` : 'Erlangga';
+  }, [active]);
 
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
@@ -19,163 +36,82 @@ export default function App() {
   };
 
   const isDark = theme === 'dark';
+  const isLanding = pathname === '/';
+  const hit = 'cursor-pointer text-base leading-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fb6514]';
+
+  if (isLanding) {
+    return (
+      <Routes>
+        <Route path="/" element={<Landing />} />
+      </Routes>
+    );
+  }
 
   return (
-    <div className={`relative w-full h-screen overflow-hidden select-none font-sans flex flex-col transition-colors duration-300 ${
-      isDark ? 'bg-[#101828] text-gray-100' : 'bg-[#f8fafc] text-gray-900'
+    <div className={`relative flex h-screen w-full select-none flex-col overflow-hidden font-sans ${
+      isDark ? 'bg-[#101828] text-[#f2f4f7]' : 'bg-[#f8fafc] text-[#101828]'
     }`}>
-      {/* Top Main Navigation Bar (Erlangga Tutor Branding) */}
-      <header className={`relative z-20 flex items-center justify-between px-4 py-2.5 border-b backdrop-blur-xl transition-colors duration-300 shrink-0 ${
-        isDark ? 'bg-[#101828]/95 border-gray-800' : 'bg-white/95 border-gray-200 shadow-sm'
-      }`}>
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-[0_4px_12px_rgba(251,101,20,0.35)] shrink-0">
-            {activeEngine === 'two_stroke' ? (
-              <Repeat className="w-5 h-5 text-white stroke-[2.2]" />
-            ) : activeEngine === 'diesel' ? (
-              <Droplets className="w-5 h-5 text-white stroke-[2.2]" />
-            ) : activeEngine === 'four_stroke' ? (
-              <Flame className="w-5 h-5 text-white stroke-[2.2]" />
-            ) : activeEngine === 'v8' ? (
-              <Cpu className="w-5 h-5 text-white stroke-[2.2]" />
-            ) : (
-              <Wind className="w-5 h-5 text-white stroke-[2.2]" />
-            )}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm sm:text-base font-extrabold tracking-tight text-orange-500">
-                ERLANGGA
-              </span>
-              <span className={`text-sm sm:text-base font-bold tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                PROPULSION LAB
-              </span>
-            </div>
-            <p className={`text-[10px] hidden sm:block ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Interactive 3D CAD & Mechanical Kinematics
-            </p>
-          </div>
-        </div>
-
-        {/* Engine Switcher Tabs */}
-        <div className={`flex items-center p-1 rounded-xl border gap-1 overflow-x-auto ${
-          isDark ? 'bg-[#161f30] border-gray-800' : 'bg-gray-100 border-gray-200'
-        }`}>
-          <button
-            onClick={() => setActiveEngine('two_stroke')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
-              activeEngine === 'two_stroke'
-                ? 'bg-orange-500 text-white shadow-[0_2px_8px_rgba(251,101,20,0.35)]'
-                : isDark
-                  ? 'text-gray-400 hover:text-white'
-                  : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Repeat className="w-3.5 h-3.5" />
-            <span>Mesin 2-Tak</span>
-          </button>
-
-          <button
-            onClick={() => setActiveEngine('diesel')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
-              activeEngine === 'diesel'
-                ? 'bg-orange-500 text-white shadow-[0_2px_8px_rgba(251,101,20,0.35)]'
-                : isDark
-                  ? 'text-gray-400 hover:text-white'
-                  : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Droplets className="w-3.5 h-3.5" />
-            <span>Mesin Diesel</span>
-          </button>
-
-          <button
-            onClick={() => setActiveEngine('four_stroke')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
-              activeEngine === 'four_stroke'
-                ? 'bg-orange-500 text-white shadow-[0_2px_8px_rgba(251,101,20,0.35)]'
-                : isDark
-                  ? 'text-gray-400 hover:text-white'
-                  : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Flame className="w-3.5 h-3.5" />
-            <span>Mesin 4-Tak</span>
-          </button>
-
-          <button
-            onClick={() => setActiveEngine('v8')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
-              activeEngine === 'v8'
-                ? 'bg-orange-500 text-white shadow-[0_2px_8px_rgba(251,101,20,0.35)]'
-                : isDark
-                  ? 'text-gray-400 hover:text-white'
-                  : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Cpu className="w-3.5 h-3.5" />
-            <span>V8 Engine</span>
-          </button>
-
-          <button
-            onClick={() => setActiveEngine('jet')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
-              activeEngine === 'jet'
-                ? 'bg-orange-500 text-white shadow-[0_2px_8px_rgba(251,101,20,0.35)]'
-                : isDark
-                  ? 'text-gray-400 hover:text-white'
-                  : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Wind className="w-3.5 h-3.5" />
-            <span>Turbofan Jet</span>
-          </button>
-        </div>
-
-        {/* Theme Mode Toggle Button */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={toggleTheme}
-            title={`Beralih ke mode ${isDark ? 'terang' : 'gelap'}`}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer active:scale-95 ${
-              isDark
-                ? 'bg-[#161f30] border-gray-700 text-orange-400 hover:bg-[#1f2c42]'
-                : 'bg-orange-50 border-orange-200 text-orange-600 hover:bg-orange-100'
-            }`}
-          >
-            {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{isDark ? 'Light' : 'Dark'}</span>
-          </button>
-        </div>
+      <header className="relative z-20 flex shrink-0 items-center gap-4 bg-white px-4 py-3 text-[#101828]">
+        <NavLink
+          to="/"
+          className={`m-0 shrink-0 text-base font-semibold tracking-[-0.03em] text-[#101828] no-underline ${hit}`}
+        >
+          Erlangga
+        </NavLink>
+        <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" aria-label="Engine">
+          {engines.map((engine) => {
+            const Icon = engine.icon;
+            return (
+              <NavLink
+                key={engine.path}
+                to={engine.path}
+                className={({ isActive }) => `inline-flex shrink-0 items-center gap-2 px-3 py-2 no-underline ${hit} ${
+                  isActive ? 'bg-[#fb6514] text-[#101828]' : 'bg-[#eef1f4] text-[#101828] hover:bg-[#e2e7ec]'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {engine.label}
+              </NavLink>
+            );
+          })}
+        </nav>
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className={`inline-flex shrink-0 items-center gap-2 bg-[#eef1f4] px-3 py-2 text-[#101828] hover:bg-[#e2e7ec] ${hit}`}
+        >
+          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {isDark ? 'Light' : 'Dark'}
+        </button>
       </header>
 
-      {/* Main Simulation Viewport */}
-      <main className="relative flex-1 w-full h-[calc(100vh-53px)] overflow-hidden">
-        {/* Ambient Glow Orbs */}
-        <div 
+      <main className="relative w-full flex-1 overflow-hidden">
+        <div
           className={`pointer-events-none absolute -left-36 top-16 h-96 w-96 rounded-full blur-3xl z-0 transition-opacity duration-500 ${
             isDark ? 'bg-orange-500/10' : 'bg-orange-500/15'
-          }`} 
-          aria-hidden="true" 
+          }`}
+          aria-hidden="true"
         />
-        <div 
+        <div
           className={`pointer-events-none absolute -right-36 bottom-16 h-96 w-96 rounded-full blur-3xl z-0 transition-opacity duration-500 ${
             isDark ? 'bg-orange-600/5' : 'bg-orange-500/10'
-          }`} 
-          aria-hidden="true" 
+          }`}
+          aria-hidden="true"
         />
 
-        {activeEngine === 'two_stroke' ? (
-          <TwoStrokeEngine theme={theme} />
-        ) : activeEngine === 'diesel' ? (
-          <DieselEngine theme={theme} />
-        ) : activeEngine === 'four_stroke' ? (
-          <FourStrokeEngine theme={theme} />
-        ) : activeEngine === 'v8' ? (
-          <V8Engine theme={theme} />
-        ) : (
-          <JetEngine theme={theme} />
-        )}
+        <Routes>
+          {engines.map((engine) => {
+            const Engine = engine.Component;
+            return (
+              <Route
+                key={engine.path}
+                path={engine.path}
+                element={<Engine theme={theme} />}
+              />
+            );
+          })}
+          <Route path="*" element={<Navigate to="/2-stroke" replace />} />
+        </Routes>
       </main>
     </div>
   );

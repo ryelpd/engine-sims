@@ -38,11 +38,60 @@ html, body, #root {
   background: #fb6514;
 }
 
-/* Custom range input styling matching Erlangga brand orange */
-input[type="range"] {
-  accent-color: #fb6514;
+/* Square range: flat track, square thumb. Used by the 2-stroke controls. */
+.square-range {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  background: transparent;
 }
 
-input[type="range"]::-webkit-slider-thumb {
-  accent-color: #fb6514;
+.square-range:focus {
+  outline: none;
+}
+
+.square-range::-webkit-slider-runnable-track {
+  height: 8px;
+  background: transparent;
+  border: 0;
+}
+
+.square-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -4px;
+  background: #101828;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.square-range:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid #fb6514;
+  outline-offset: 2px;
+}
+
+.square-range::-moz-range-track {
+  height: 8px;
+  background: transparent;
+  border: 0;
+}
+
+.square-range::-moz-range-progress {
+  background: transparent;
+}
+
+.square-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #101828;
+  border: 0;
+  border-radius: 0;
+}
+
+.square-range:focus-visible::-moz-range-thumb {
+  outline: 2px solid #fb6514;
+  outline-offset: 2px;
 }

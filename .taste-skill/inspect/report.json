@@ -1,0 +1,1169 @@
+{
+ "url": "http://127.0.0.1:5173/",
+ "at": "2026-10-16T04:33:49.305Z",
+ "allow": [],
+ "viewports": [
+  {
+   "width": 1440,
+   "height": 900,
+   "load": "load",
+   "screens": 5,
+   "filled": [
+    0.5,
+    0.93,
+    0.66,
+    1,
+    1
+   ],
+   "motion": {
+    "elements": 24,
+    "css": 21,
+    "transitions": 3,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "page": {
+     "height": 3765,
+     "screens": 4.2,
+     "words": 120,
+     "img": 14,
+     "video": 0,
+     "canvas": 0,
+     "svg": 0,
+     "sections": 4,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 1,
+     "uiAbuse": false,
+     "realPictures": 9,
+     "videoCount": 0,
+     "uiPictures": 1,
+     "pictureSamples": [
+      "two-stroke.jpg",
+      "diesel.jpg",
+      "four-stroke.jpg",
+      "v8.jpg",
+      "turbofan.jpg",
+      "assembled.jpg",
+      "cut.jpg",
+      "exploded.jpg"
+     ],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": []
+    },
+    "hero": {
+     "text": "Open an engine",
+     "words": 3,
+     "chars": 14,
+     "lines": 2,
+     "size": 115.2,
+     "vw": 8,
+     "font": "Outfit",
+     "weight": 600,
+     "tracking": -0.045,
+     "leading": 0.9,
+     "upper": false,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "left",
+     "widthRatio": 0.42,
+     "top": 119,
+     "tag": "h1",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Open an engine",
+     "words": 3,
+     "lines": 2,
+     "size": 115.2,
+     "font": "Outfit"
+    },
+    "headings": [
+     {
+      "text": "Open an engine",
+      "words": 3,
+      "chars": 14,
+      "lines": 2,
+      "size": 115.2,
+      "vw": 8,
+      "font": "Outfit",
+      "weight": 600,
+      "tracking": -0.045,
+      "leading": 0.9,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.42,
+      "top": 119,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "Open the 2-stroke",
+      "words": 3,
+      "chars": 17,
+      "lines": 1,
+      "size": 46.1,
+      "vw": 3.2,
+      "font": "Outfit",
+      "weight": 600,
+      "tracking": -0.04,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.34,
+      "top": 928,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Inside the case",
+      "words": 3,
+      "chars": 15,
+      "lines": 1,
+      "size": 51.8,
+      "vw": 3.6,
+      "font": "Outfit",
+      "weight": 600,
+      "tracking": -0.04,
+      "leading": 0.95,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.56,
+      "top": 1868,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Leave one running",
+      "words": 3,
+      "chars": 17,
+      "lines": 2,
+      "size": 112,
+      "vw": 7.8,
+      "font": "Outfit",
+      "weight": 600,
+      "tracking": -0.045,
+      "leading": 0.9,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.41,
+      "top": 2884,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Erlangga",
+      "words": 1,
+      "chars": 8,
+      "lines": 1,
+      "size": 201.6,
+      "vw": 14,
+      "font": "Outfit",
+      "weight": 600,
+      "tracking": -0.05,
+      "leading": 0.95,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.97,
+      "top": 3462,
+      "tag": "p",
+      "kind": "statement"
+     }
+    ],
+    "headingSummary": {
+     "count": 5,
+     "maxLines": 2,
+     "over2Lines": 0,
+     "statements": 1,
+     "centered": 0,
+     "medianWords": 3,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Outfit",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      16,
+      18,
+      20,
+      22,
+      46,
+      52,
+      112,
+      115,
+      202
+     ],
+     "sizeCount": 9,
+     "notLoaded": [],
+     "body": {
+      "font": "Outfit",
+      "size": 16,
+      "leading": 1.5,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 17
+     },
+     "measureChars": 47,
+     "max": {
+      "size": 201.6,
+      "vw": 14,
+      "font": "Outfit",
+      "text": "Erlangga"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.02,
+     "smallText": 0
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#f8fafc",
+     "bodyBgHsl": {
+      "h": 210,
+      "s": 0.4,
+      "l": 0.98
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#f8fafc",
+       "top": 0,
+       "hsl": {
+        "h": 210,
+        "s": 0.4,
+        "l": 0.98
+       }
+      },
+      {
+       "color": "#fb6514",
+       "top": 90,
+       "hsl": {
+        "h": 21,
+        "s": 0.97,
+        "l": 0.53
+       }
+      },
+      {
+       "color": "#101828",
+       "top": 2748,
+       "hsl": {
+        "h": 220,
+        "s": 0.43,
+        "l": 0.11
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#101828",
+       "share": 0.72
+      },
+      {
+       "color": "#f8fafc",
+       "share": 0.28
+      }
+     ],
+     "button": {
+      "bg": "#101828",
+      "hsl": {
+       "h": 220,
+       "s": 0.43,
+       "l": 0.11
+      },
+      "fg": "#f8fafc"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 5,
+     "inHero": 5,
+     "radius": "pill",
+     "height": 64,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "2-stroke",
+      "Diesel",
+      "4-stroke",
+      "V8",
+      "Turbofan"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 0,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 2,
+     "boxRadius": 50,
+     "squareMedia": 0,
+     "roundedMedia": 9,
+     "mediaRadius": 50,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [
+     {
+      "type": "img",
+      "ratio": 0.28
+     },
+     {
+      "type": "img",
+      "ratio": 0.26
+     },
+     {
+      "type": "img",
+      "ratio": 0.26
+     },
+     {
+      "type": "img",
+      "ratio": 0.26
+     }
+    ],
+    "nav": {
+     "links": 6,
+     "fixed": false,
+     "height": 27,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "outfit"
+    ]
+   },
+   "consoleErrors": []
+  },
+  {
+   "width": 768,
+   "height": 1024,
+   "load": "load",
+   "screens": 5,
+   "filled": [
+    0.53,
+    0.89,
+    0.65,
+    0.79,
+    1
+   ],
+   "motion": {
+    "elements": 24,
+    "css": 21,
+    "transitions": 3,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "page": {
+     "height": 4907,
+     "screens": 4.8,
+     "words": 120,
+     "img": 14,
+     "video": 0,
+     "canvas": 0,
+     "svg": 0,
+     "sections": 4,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 1,
+     "uiAbuse": false,
+     "realPictures": 9,
+     "videoCount": 0,
+     "uiPictures": 1,
+     "pictureSamples": [
+      "two-stroke.jpg",
+      "diesel.jpg",
+      "four-stroke.jpg",
+      "v8.jpg",
+      "turbofan.jpg",
+      "assembled.jpg",
+      "cut.jpg",
+      "exploded.jpg"
+     ],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": []
+    },
+    "hero": {
+     "text": "Open an engine",
+     "words": 3,
+     "chars": 14,
+     "lines": 2,
+     "size": 61.4,
+     "vw": 8,
+     "font": "Outfit",
+     "weight": 600,
+     "tracking": -0.045,
+     "leading": 0.9,
+     "upper": false,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "left",
+     "widthRatio": 0.42,
+     "top": 129,
+     "tag": "h1",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Open an engine",
+     "words": 3,
+     "lines": 2,
+     "size": 61.4,
+     "font": "Outfit"
+    },
+    "headings": [
+     {
+      "text": "Open an engine",
+      "words": 3,
+      "chars": 14,
+      "lines": 2,
+      "size": 61.4,
+      "vw": 8,
+      "font": "Outfit",
+      "weight": 600,
+      "tracking": -0.045,
+      "leading": 0.9,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.42,
+      "top": 129,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "Open the 2-stroke",
+      "words": 3,
+      "chars": 17,
+      "lines": 1,
+      "size": 32,
+      "vw": 4.2,
+      "font": "Outfit",
+      "weight": 600,
+      "tracking": -0.04,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.44,
+      "top": 1181,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Inside the case",
+      "words": 3,
+      "chars": 15,
+      "lines": 1,
+      "size": 32,
+      "vw": 4.2,
+      "font": "Outfit",
+      "weight": 600,
+      "tracking": -0.04,
+      "leading": 0.95,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.94,
+      "top": 2168,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Leave one running",
+      "words": 3,
+      "chars": 17,
+      "lines": 2,
+      "size": 69.1,
+      "vw": 9,
+      "font": "Outfit",
+      "weight": 600,
+      "tracking": -0.045,
+      "leading": 0.9,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.48,
+      "top": 4111,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Erlangga",
+      "words": 1,
+      "chars": 8,
+      "lines": 1,
+      "size": 107.5,
+      "vw": 14,
+      "font": "Outfit",
+      "weight": 600,
+      "tracking": -0.05,
+      "leading": 0.95,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.94,
+      "top": 4693,
+      "tag": "p",
+      "kind": "statement"
+     }
+    ],
+    "headingSummary": {
+     "count": 5,
+     "maxLines": 2,
+     "over2Lines": 0,
+     "statements": 1,
+     "centered": 0,
+     "medianWords": 3,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Outfit",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      16,
+      18,
+      20,
+      32,
+      61,
+      69,
+      108
+     ],
+     "sizeCount": 7,
+     "notLoaded": [],
+     "body": {
+      "font": "Outfit",
+      "size": 16,
+      "leading": 1.5,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 17
+     },
+     "measureChars": 47,
+     "max": {
+      "size": 107.5,
+      "vw": 14,
+      "font": "Outfit",
+      "text": "Erlangga"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.02,
+     "smallText": 0
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#f8fafc",
+     "bodyBgHsl": {
+      "h": 210,
+      "s": 0.4,
+      "l": 0.98
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#f8fafc",
+       "top": 0,
+       "hsl": {
+        "h": 210,
+        "s": 0.4,
+        "l": 0.98
+       }
+      },
+      {
+       "color": "#fb6514",
+       "top": 1153,
+       "hsl": {
+        "h": 21,
+        "s": 0.97,
+        "l": 0.53
+       }
+      },
+      {
+       "color": "#101828",
+       "top": 3126,
+       "hsl": {
+        "h": 220,
+        "s": 0.43,
+        "l": 0.11
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#101828",
+       "share": 0.72
+      },
+      {
+       "color": "#f8fafc",
+       "share": 0.28
+      }
+     ],
+     "button": {
+      "bg": "#101828",
+      "hsl": {
+       "h": 220,
+       "s": 0.43,
+       "l": 0.11
+      },
+      "fg": "#f8fafc"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 10,
+     "inHero": 5,
+     "radius": "pill",
+     "height": 56,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "2-stroke",
+      "Diesel",
+      "4-stroke",
+      "V8",
+      "Turbofan"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 0,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 2,
+     "boxRadius": 50,
+     "squareMedia": 0,
+     "roundedMedia": 9,
+     "mediaRadius": 50,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [
+     {
+      "type": "img",
+      "ratio": 0.19
+     },
+     {
+      "type": "img",
+      "ratio": 0.17
+     },
+     {
+      "type": "img",
+      "ratio": 0.17
+     },
+     {
+      "type": "img",
+      "ratio": 0.17
+     }
+    ],
+    "nav": {
+     "links": 6,
+     "fixed": false,
+     "height": 27,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "outfit"
+    ]
+   },
+   "consoleErrors": []
+  },
+  {
+   "width": 390,
+   "height": 844,
+   "load": "load",
+   "screens": 5,
+   "filled": [
+    0.58,
+    0.87,
+    0.69,
+    0.77,
+    1
+   ],
+   "motion": {
+    "elements": 24,
+    "css": 21,
+    "transitions": 3,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "page": {
+     "height": 4053,
+     "screens": 4.8,
+     "words": 120,
+     "img": 14,
+     "video": 0,
+     "canvas": 0,
+     "svg": 0,
+     "sections": 4,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 1,
+     "uiAbuse": false,
+     "realPictures": 9,
+     "videoCount": 0,
+     "uiPictures": 1,
+     "pictureSamples": [
+      "two-stroke.jpg",
+      "diesel.jpg",
+      "four-stroke.jpg",
+      "v8.jpg",
+      "turbofan.jpg",
+      "assembled.jpg",
+      "cut.jpg",
+      "exploded.jpg"
+     ],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": []
+    },
+    "hero": {
+     "text": "Open an engine",
+     "words": 3,
+     "chars": 14,
+     "lines": 2,
+     "size": 56,
+     "vw": 14.4,
+     "font": "Outfit",
+     "weight": 600,
+     "tracking": -0.045,
+     "leading": 0.9,
+     "upper": false,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "center",
+     "widthRatio": 0.76,
+     "top": 147,
+     "tag": "h1",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Open an engine",
+     "words": 3,
+     "lines": 2,
+     "size": 56,
+     "font": "Outfit"
+    },
+    "headings": [
+     {
+      "text": "Open an engine",
+      "words": 3,
+      "chars": 14,
+      "lines": 2,
+      "size": 56,
+      "vw": 14.4,
+      "font": "Outfit",
+      "weight": 600,
+      "tracking": -0.045,
+      "leading": 0.9,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.76,
+      "top": 147,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "Open the 2-stroke",
+      "words": 3,
+      "chars": 17,
+      "lines": 1,
+      "size": 32,
+      "vw": 8.2,
+      "font": "Outfit",
+      "weight": 600,
+      "tracking": -0.04,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.87,
+      "top": 1141,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Inside the case",
+      "words": 3,
+      "chars": 15,
+      "lines": 1,
+      "size": 32,
+      "vw": 8.2,
+      "font": "Outfit",
+      "weight": 600,
+      "tracking": -0.04,
+      "leading": 0.95,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.88,
+      "top": 1962,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Leave one running",
+      "words": 3,
+      "chars": 17,
+      "lines": 2,
+      "size": 56,
+      "vw": 14.4,
+      "font": "Outfit",
+      "weight": 600,
+      "tracking": -0.045,
+      "leading": 0.9,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.76,
+      "top": 3321,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Erlangga",
+      "words": 1,
+      "chars": 8,
+      "lines": 1,
+      "size": 64,
+      "vw": 16.4,
+      "font": "Outfit",
+      "weight": 600,
+      "tracking": -0.05,
+      "leading": 0.95,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.88,
+      "top": 3880,
+      "tag": "p",
+      "kind": "statement"
+     }
+    ],
+    "headingSummary": {
+     "count": 5,
+     "maxLines": 2,
+     "over2Lines": 0,
+     "statements": 1,
+     "centered": 0,
+     "medianWords": 3,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Outfit",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      16,
+      18,
+      20,
+      32,
+      56,
+      64
+     ],
+     "sizeCount": 6,
+     "notLoaded": [],
+     "body": {
+      "font": "Outfit",
+      "size": 16,
+      "leading": 1.5,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 17
+     },
+     "measureChars": 34,
+     "max": {
+      "size": 64,
+      "vw": 16.4,
+      "font": "Outfit",
+      "text": "Erlangga"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.02,
+     "smallText": 0
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#f8fafc",
+     "bodyBgHsl": {
+      "h": 210,
+      "s": 0.4,
+      "l": 0.98
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#f8fafc",
+       "top": 0,
+       "hsl": {
+        "h": 210,
+        "s": 0.4,
+        "l": 0.98
+       }
+      },
+      {
+       "color": "#fb6514",
+       "top": 739,
+       "hsl": {
+        "h": 21,
+        "s": 0.97,
+        "l": 0.53
+       }
+      },
+      {
+       "color": "#101828",
+       "top": 3190,
+       "hsl": {
+        "h": 220,
+        "s": 0.43,
+        "l": 0.11
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#101828",
+       "share": 0.72
+      },
+      {
+       "color": "#f8fafc",
+       "share": 0.28
+      }
+     ],
+     "button": {
+      "bg": "#101828",
+      "hsl": {
+       "h": 220,
+       "s": 0.43,
+       "l": 0.11
+      },
+      "fg": "#f8fafc"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 10,
+     "inHero": 5,
+     "radius": "pill",
+     "height": 56,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "2-stroke",
+      "Diesel",
+      "4-stroke",
+      "V8",
+      "Turbofan"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 0,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 2,
+     "boxRadius": 50,
+     "squareMedia": 0,
+     "roundedMedia": 8,
+     "mediaRadius": 50,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [
+     {
+      "type": "img",
+      "ratio": 0.12
+     },
+     {
+      "type": "img",
+      "ratio": 0.11
+     },
+     {
+      "type": "img",
+      "ratio": 0.11
+     },
+     {
+      "type": "img",
+      "ratio": 0.11
+     }
+    ],
+    "nav": {
+     "links": 6,
+     "fixed": false,
+     "height": 60,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "outfit"
+    ]
+   },
+   "consoleErrors": []
+  }
+ ],
+ "findings": [
+  {
+   "level": "WARN",
+   "id": "no-footage",
+   "width": 1440,
+   "message": "No video anywhere on the page.",
+   "fix": "Look for one honest clip with scripts/assets.mjs --video (the place, the material, the process) and use it as a muted loop with a poster frame. Defend its absence only if no clip fits the subject."
+  }
+ ],
+ "images": [
+  {
+   "viewport": "desktop",
+   "width": 1440,
+   "fold": "d:\\WebProject\\engine\\.taste-skill\\inspect\\desktop-fold.jpg",
+   "pages": [
+    "d:\\WebProject\\engine\\.taste-skill\\inspect\\desktop-page-01.jpg",
+    "d:\\WebProject\\engine\\.taste-skill\\inspect\\desktop-page-02.jpg"
+   ]
+  },
+  {
+   "viewport": "tablet",
+   "width": 768,
+   "fold": "d:\\WebProject\\engine\\.taste-skill\\inspect\\tablet-fold.jpg",
+   "pages": [
+    "d:\\WebProject\\engine\\.taste-skill\\inspect\\tablet-page-01.jpg"
+   ]
+  },
+  {
+   "viewport": "mobile",
+   "width": 390,
+   "fold": "d:\\WebProject\\engine\\.taste-skill\\inspect\\mobile-fold.jpg",
+   "pages": [
+    "d:\\WebProject\\engine\\.taste-skill\\inspect\\mobile-page-01.jpg"
+   ]
+  }
+ ]
+}

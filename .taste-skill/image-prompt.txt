@@ -1,0 +1,14 @@
+Use the image generation tool. Do not draw the pictures in code, SVG, or Python. Do not edit any source files.
+
+Create eight square images, one tool call each, and save them exactly at these paths:
+
+1. public/lab/generated/two-stroke.png — a single-cylinder reed-valve two-stroke engine, 180 degree cutaway, piston near mid stroke, transfer ports and exhaust visible, combustion glow only inside the chamber.
+2. public/lab/generated/diesel.png — a single-cylinder diesel, 180 degree cutaway, fuel injector in the head, no spark plug, hot air in the chamber.
+3. public/lab/generated/four-stroke.png — a single-cylinder spark-ignition four-stroke, 180 degree cutaway, two valves and a spark plug, piston in the bore.
+4. public/lab/generated/v8.png — a 90 degree V8 with a cross-plane crank, cutaway so both banks, pistons and the crank are readable, compact and centered.
+5. public/lab/generated/turbofan.png — a twin-spool turbofan in longitudinal cutaway: fan, compressors, annular combustor, turbines, nozzle. Metal, no airline livery, no text.
+6. public/lab/generated/assembled.png — the same single-cylinder engine fully closed. Block, head and covers read as one casting. No cut.
+7. public/lab/generated/cut.png — that same engine with a 180 degree section removed so the bore, valves and chamber are open.
+8. public/lab/generated/exploded.png — that same engine pulled apart on the vertical axis: head, block, piston and crank separated, still aligned.
+
+Shared look: square, subject centered and large, pale studio ground #f8fafc, soft even light, dark machined metal #101828, one small orange #fb6514 heat detail only where combustion belongs. No words, numbers, labels, logos, people, or arrows. Photographic product render, not a diagram and not a cartoon.

@@ -1,10 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Box, Grid3x3, Layers, Orbit, Pause, Play, RotateCcw, Sparkles } from 'lucide-react';
 import * as THREE from 'three';
-import { 
-  Play, Pause, RotateCcw, Eye, EyeOff, 
-  Layers, Box, Grid, Cpu, Flame, 
-  Sliders, Maximize2, Activity, Gauge, Zap, Info, Wind, Scissors, Compass, Sparkles
-} from 'lucide-react';
+
+function SquareRange({ min, max, step, value, label, onChange }) {
+  const pct = ((Number(value) - min) / (max - min)) * 100;
+  return (
+    <div className="relative flex h-8 items-center">
+      <span className="pointer-events-none absolute top-1/2 right-0 left-0 h-2 -translate-y-1/2 bg-[#d5dce3]" />
+      <span
+        className="pointer-events-none absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-[#fb6514]"
+        style={{ width: `calc(${pct / 100} * (100% - 16px) + 8px)` }}
+      />
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        aria-label={label}
+        onChange={onChange}
+        className="square-range relative z-10 h-8 w-full cursor-pointer"
+      />
+    </div>
+  );
+}
 
 const JET_SPECS = {
   bypassRatio: '9.6 : 1',
@@ -1152,25 +1171,11 @@ export default function JetEngine({ theme = 'dark' }) {
     camControl.current.radius = Math.max(5.5, Math.min(28, camControl.current.radius + e.deltaY * 0.008));
   };
 
-  const setCameraPreset = (preset) => {
+  const resetCamera = () => {
     setAutoRotateCam(false);
-    if (preset === 'iso') {
-      camControl.current.theta = 0.78;
-      camControl.current.phi = 1.22;
-      camControl.current.radius = 14.5;
-    } else if (preset === 'intake') {
-      camControl.current.theta = 0.15;
-      camControl.current.phi = 1.48;
-      camControl.current.radius = 11.5;
-    } else if (preset === 'side') {
-      camControl.current.theta = Math.PI / 2;
-      camControl.current.phi = 1.48;
-      camControl.current.radius = 14.5;
-    } else if (preset === 'exhaust') {
-      camControl.current.theta = Math.PI - 0.25;
-      camControl.current.phi = 1.42;
-      camControl.current.radius = 12.5;
-    }
+    camControl.current.theta = 0.78;
+    camControl.current.phi = 1.22;
+    camControl.current.radius = 14.5;
   };
 
   const n1Pct = isPlaying ? Math.round(18 + throttle * 0.82 + (afterburner ? 4 : 0)) : 0;
@@ -1182,25 +1187,24 @@ export default function JetEngine({ theme = 'dark' }) {
     ? ((throttle / 100) * JET_SPECS.maxThrustDry + (afterburner ? 53 * (0.4 + 0.6 * (throttle / 100)) : 0)).toFixed(1)
     : '0.0';
 
-  const isDark = theme === 'dark';
-
-  const cardClass = isDark
-    ? 'bg-[#101828]/90 backdrop-blur-xl border border-gray-800 shadow-[0_16px_36px_rgba(0,0,0,0.45)]'
-    : 'bg-white/95 backdrop-blur-xl border border-gray-200 shadow-[0_16px_38px_rgba(16,24,40,0.08)]';
-  const subCardClass = isDark
-    ? 'bg-[#161f30]/90 border border-gray-800'
-    : 'bg-gray-50/90 border border-gray-200/80';
-  const headingText = isDark ? 'text-white' : 'text-gray-900';
-  const bodyText = isDark ? 'text-gray-300' : 'text-gray-600';
-  const mutedText = isDark ? 'text-gray-400' : 'text-gray-500';
-  const dividerClass = isDark ? 'border-gray-800' : 'border-gray-200';
-  const btnSecondary = isDark
-    ? 'bg-[#161f30] hover:bg-[#1f2c42] text-gray-300 border border-gray-700'
-    : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-200 shadow-xs';
+  const sheet = {
+    panel: 'bg-white text-[#101828]',
+    idle: 'bg-[#eef1f4] text-[#101828] hover:bg-[#e2e7ec]',
+    chosen: 'bg-[#101828] text-white'
+  };
+  const hit = 'cursor-pointer text-base leading-snug focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fb6514]';
+  const stages = [
+    { label: 'Fan', spool: 'N1' },
+    { label: 'LPC', spool: 'N1' },
+    { label: 'HPC', spool: 'N2' },
+    { label: 'Combustor', spool: 'Burn' },
+    { label: 'HPT', spool: 'N2' },
+    { label: 'LPT', spool: 'N1' },
+    { label: 'Nozzle', spool: 'AB', hot: afterburner }
+  ];
 
   return (
     <div className="relative w-full h-full overflow-hidden select-none font-sans">
-      {/* 3D Canvas Viewport */}
       <div
         ref={mountRef}
         onPointerDown={handlePointerDown}
@@ -1209,360 +1213,227 @@ export default function JetEngine({ theme = 'dark' }) {
         onPointerLeave={handlePointerUp}
         onWheel={handleWheel}
         onContextMenu={(e) => e.preventDefault()}
-        className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing z-0"
+        className="absolute inset-0 z-0 h-full w-full cursor-grab active:cursor-grabbing"
       />
 
-      {/* =========================================================
-          TOP-LEFT: HEADER, STAGE ARCHITECTURE & TELEMETRY
-      ========================================================= */}
-      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2.5 max-w-xs sm:max-w-md pointer-events-none">
-        <div className={`${cardClass} rounded-2xl p-4 pointer-events-auto transition-colors duration-300`}>
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-orange-500/15 border border-orange-500/30">
-                <Wind className="w-5 h-5 text-orange-500" />
+      <div className="pointer-events-none absolute top-4 left-4 z-10 max-h-[calc(100%-11rem)] w-[min(28rem,calc(100%-2rem))] overflow-y-auto max-[720px]:max-h-[50%] max-[720px]:w-[calc(100%-2rem)]">
+        <section aria-label="Turbofan" className={`pointer-events-auto flex flex-col gap-5 p-5 ${sheet.panel}`}>
+          <div className="flex items-baseline justify-between gap-4">
+            <h1 className="m-0 text-[1.75rem] font-semibold leading-none tracking-[-0.03em]">Turbofan</h1>
+            <p className="m-0 text-[1.75rem] font-semibold leading-none tracking-[-0.03em] tabular-nums">
+              {throttle}%
+            </p>
+          </div>
+
+          <p className="m-0 min-h-36 text-base leading-relaxed">
+            Twin-spool turbofan. N1 turns the fan and the low-pressure turbine. N2 turns the core. The nozzle lights when the afterburner is on.
+          </p>
+
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Gas path">
+            {stages.map((stage) => (
+              <div
+                key={stage.label}
+                className={`px-3 py-2 ${stage.hot ? 'bg-[#fb6514] text-[#101828]' : 'bg-[#eef1f4] text-[#101828]'}`}
+              >
+                <span className="block text-base font-semibold">{stage.label}</span>
+                <span className="block text-base">{stage.spool}</span>
               </div>
-              <div>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-500/30 bg-orange-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-orange-500 mb-0.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />
-                  Twin-Spool Turbofan • Afterburner
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: 'N1 fan', value: `${n1Pct}%`, unit: `${n1Rpm} rpm` },
+              { label: 'N2 core', value: `${n2Pct}%`, unit: `${n2Rpm} rpm` },
+              { label: 'EGT', value: egtTemp, unit: '°C' },
+              { label: 'Thrust', value: thrustKn, unit: 'kN' }
+            ].map((item) => (
+              <div key={item.label} className="bg-[#eef1f4] px-3 py-2">
+                <span className="block text-base">{item.label}</span>
+                <span className="block text-base font-semibold tabular-nums text-[#fb6514]">
+                  {item.value}
+                  <span className="ml-1 font-normal text-[#101828]">{item.unit}</span>
                 </span>
-                <h1 className={`text-base sm:text-lg font-extrabold tracking-tight ${headingText}`}>
-                  SIMULASI TURBOFAN JET
-                </h1>
               </div>
-            </div>
-
-            {/* Camera View Presets */}
-            <div className="hidden sm:flex items-center gap-1">
-              {[
-                { id: 'iso', label: 'ISO' },
-                { id: 'intake', label: 'Intake' },
-                { id: 'side', label: 'Samping' },
-                { id: 'exhaust', label: 'Exhaust' }
-              ].map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setCameraPreset(p.id)}
-                  className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer active:scale-95 ${btnSecondary}`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
+            ))}
           </div>
-
-          {/* Axial Gas Path Stages */}
-          <div className={`mt-2 pt-2.5 border-t ${dividerClass}`}>
-            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider mb-1.5">
-              <span className={`font-bold flex items-center gap-1 ${mutedText}`}>
-                <Cpu className="w-3.5 h-3.5 text-orange-500" /> Tahap Aliran Gas Turbofan
-              </span>
-              <span className="font-mono font-bold text-orange-500">
-                OPR {JET_SPECS.pressureRatio}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-7 gap-1 text-[10px] font-mono">
-              {[
-                { label: 'FAN', spool: 'N1', color: 'border-orange-500/40 text-orange-500 bg-orange-500/10' },
-                { label: '3-LPC', spool: 'N1', color: 'border-orange-500/30 text-orange-500 bg-orange-500/10' },
-                { label: '6-HPC', spool: 'N2', color: 'border-rose-500/50 text-rose-400 bg-rose-500/10' },
-                { label: 'COMB', spool: 'FIRE', color: 'border-amber-500/60 text-amber-500 bg-amber-500/10' },
-                { label: '2-HPT', spool: 'N2', color: 'border-rose-500/50 text-rose-400 bg-rose-500/10' },
-                { label: '4-LPT', spool: 'N1', color: 'border-orange-500/30 text-orange-500 bg-orange-500/10' },
-                {
-                  label: 'NOZ',
-                  spool: 'AB',
-                  color: afterburner
-                    ? 'border-orange-500 text-white bg-orange-500 shadow-[0_0_12px_rgba(251,101,20,0.5)]'
-                    : isDark
-                    ? 'border-gray-800 text-gray-500 bg-[#161f30]'
-                    : 'border-gray-200 text-gray-500 bg-gray-100'
-                }
-              ].map((st) => (
-                <div
-                  key={st.label}
-                  className={`text-center py-1 rounded-lg border ${st.color} flex flex-col items-center font-bold`}
-                >
-                  <span>{st.label}</span>
-                  <span className="text-[8px] opacity-75">{st.spool}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Live Telemetry Readouts */}
-          <div className={`grid grid-cols-4 gap-1.5 text-xs border-t ${dividerClass} pt-2.5 mt-2.5`}>
-            <div className={`${subCardClass} rounded-xl px-2 py-1.5`}>
-              <span className={`${mutedText} block text-[9px] uppercase font-bold`}>N1 Fan</span>
-              <span className="font-mono text-sm font-extrabold text-orange-500">{n1Pct}%</span>
-              <span className={`text-[8px] block font-mono ${mutedText}`}>{n1Rpm} RPM</span>
-            </div>
-            <div className={`${subCardClass} rounded-xl px-2 py-1.5`}>
-              <span className={`${mutedText} block text-[9px] uppercase font-bold`}>N2 Core</span>
-              <span className="font-mono text-sm font-extrabold text-rose-500">{n2Pct}%</span>
-              <span className={`text-[8px] block font-mono ${mutedText}`}>{n2Rpm} RPM</span>
-            </div>
-            <div className={`${subCardClass} rounded-xl px-2 py-1.5`}>
-              <span className={`${mutedText} block text-[9px] uppercase font-bold`}>Suhu EGT</span>
-              <span className="font-mono text-sm font-extrabold text-amber-500">{egtTemp}°C</span>
-            </div>
-            <div className={`${subCardClass} rounded-xl px-2 py-1.5`}>
-              <span className={`${mutedText} block text-[9px] uppercase font-bold`}>Daya Dorong</span>
-              <span className="font-mono text-sm font-extrabold text-emerald-500">{thrustKn}</span>
-              <span className={`text-[9px] ml-0.5 ${mutedText}`}>kN</span>
-            </div>
-          </div>
-        </div>
+        </section>
       </div>
 
-      {/* =========================================================
-          TOP-RIGHT: SHADING MODE & COMPONENT VISIBILITY
-      ========================================================= */}
-      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2.5 w-64 pointer-events-none">
-        <div className={`${cardClass} rounded-2xl p-3.5 pointer-events-auto transition-colors duration-300`}>
-          <div className={`text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5 ${mutedText}`}>
-            <Layers className="w-3.5 h-3.5 text-orange-500" /> Mode Visualisasi CAD
-          </div>
-          <div className="grid grid-cols-2 gap-1.5">
+      <div className="pointer-events-none absolute top-4 right-4 z-10 w-[min(20rem,calc(100%-2rem))] max-[720px]:top-auto max-[720px]:bottom-44 max-[720px]:left-4 max-[720px]:right-4 max-[720px]:max-h-[28%] max-[720px]:w-auto max-[720px]:overflow-y-auto">
+        <section
+          aria-label="Engine view"
+          className={`pointer-events-auto flex flex-col gap-5 p-5 ${sheet.panel}`}
+          style={{ colorScheme: 'light' }}
+        >
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Render mode">
             {[
-              { id: 'realistic', label: 'Realistic PBR', icon: Sparkles },
-              { id: 'raw', label: 'Raw Shaded', icon: Box },
-              { id: 'wireframe', label: 'Wireframe', icon: Grid },
-              { id: 'shaded_wire', label: 'Shaded + Wire', icon: Cpu }
+              { id: 'realistic', label: 'Realistic', icon: Sparkles },
+              { id: 'raw', label: 'Shaded', icon: Box },
+              { id: 'wireframe', label: 'Wireframe', icon: Grid3x3 },
+              { id: 'shaded_wire', label: 'Shaded wire', icon: Layers }
             ].map((mode) => {
-              const IconComp = mode.icon;
               const active = renderMode === mode.id;
+              const Icon = mode.icon;
               return (
                 <button
                   key={mode.id}
+                  type="button"
+                  aria-pressed={active}
                   onClick={() => setRenderMode(mode.id)}
-                  className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer active:scale-95 ${
-                    active
-                      ? 'bg-orange-500 text-white shadow-[0_4px_14px_rgba(251,101,20,0.35)] border border-orange-400'
-                      : btnSecondary
-                  }`}
+                  className={`flex w-full items-center gap-2 px-3 py-3 text-left ${hit} ${active ? 'bg-[#fb6514] text-[#101828]' : sheet.idle}`}
                 >
-                  <IconComp className="w-3.5 h-3.5" />
-                  <span>{mode.label}</span>
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {mode.label}
                 </button>
               );
             })}
           </div>
 
-          <div className={`mt-3 pt-2.5 border-t ${dividerClass}`}>
-            <div className={`text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5 ${mutedText}`}>
-              <Eye className="w-3.5 h-3.5 text-orange-500" /> Komponen & Belahan
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {/* 180 deg Section Cutaway */}
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Visible parts">
+            <button
+              type="button"
+              aria-pressed={cutawayMode}
+              onClick={() => setCutawayMode(!cutawayMode)}
+              className={`col-span-2 px-3 py-3 text-left ${hit} ${cutawayMode ? sheet.chosen : sheet.idle}`}
+            >
+              Cutaway
+            </button>
+            {[
+              { label: 'Nacelle', state: showNacelle, setter: setShowNacelle },
+              { label: 'Core case', state: showCoreCase, setter: setShowCoreCase },
+              { label: 'Stators', state: showStators, setter: setShowStators },
+              { label: 'Airflow', state: showAirflow, setter: setShowAirflow }
+            ].map((item) => (
               <button
-                onClick={() => setCutawayMode(!cutawayMode)}
-                className={`col-span-2 flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 border ${
-                  cutawayMode
-                    ? 'bg-orange-500/15 border-orange-500/40 text-orange-500'
-                    : isDark
-                    ? 'bg-gray-900/40 border-gray-800 text-gray-400'
-                    : 'bg-gray-100 border-gray-200 text-gray-600'
-                }`}
+                key={item.label}
+                type="button"
+                aria-pressed={item.state}
+                onClick={() => item.setter(!item.state)}
+                className={`px-3 py-3 text-left ${hit} ${item.state ? sheet.chosen : sheet.idle}`}
               >
-                <span className="flex items-center gap-1.5">
-                  <Scissors className="w-3.5 h-3.5" /> 180° Section Cutaway
-                </span>
-                <span className="text-[10px] uppercase font-extrabold">
-                  {cutawayMode ? 'AKTIF' : 'PENUH'}
-                </span>
+                {item.label}
               </button>
+            ))}
+          </div>
+        </section>
+      </div>
 
+      <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-10 flex flex-col items-stretch justify-between gap-3 lg:flex-row lg:items-end">
+        <section
+          aria-label="Simulation controls"
+          className={`pointer-events-auto grid flex-1 grid-cols-1 gap-6 p-5 sm:grid-cols-2 xl:grid-cols-4 ${sheet.panel}`}
+          style={{ colorScheme: 'light' }}
+        >
+          <div className="flex flex-col gap-2">
+            <p className="m-0 text-base">
+              <span className="font-semibold tabular-nums">{throttle}%</span> throttle
+            </p>
+            <SquareRange
+              min={5}
+              max={100}
+              step={1}
+              value={throttle}
+              label="Throttle"
+              onChange={(e) => setThrottle(Number(e.target.value))}
+            />
+            <div className="flex flex-wrap gap-2">
               {[
-                { label: 'Bypass Nacelle', state: showNacelle, setter: setShowNacelle },
-                { label: 'Core Duct', state: showCoreCase, setter: setShowCoreCase },
-                { label: 'Stator Vanes', state: showStators, setter: setShowStators },
-                { label: 'Airflow Stream', state: showAirflow, setter: setShowAirflow }
-              ].map((item, idx) => (
+                { value: 12, label: '12% idle', afterburner: false },
+                { value: 65, label: '65% cruise', afterburner: false },
+                { value: 92, label: '92% climb', afterburner: false },
+                { value: 100, label: 'Max AB', afterburner: true }
+              ].map((preset) => (
                 <button
-                  key={idx}
-                  onClick={() => item.setter(!item.state)}
-                  className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer active:scale-95 border ${
-                    item.state
-                      ? isDark
-                        ? 'bg-[#161f30] border-orange-500/40 text-gray-200'
-                        : 'bg-orange-50/70 border-orange-300 text-gray-800'
-                      : isDark
-                      ? 'bg-gray-900/40 border-gray-800/80 text-gray-500'
-                      : 'bg-gray-100/70 border-gray-200 text-gray-400'
-                  }`}
+                  key={preset.label}
+                  type="button"
+                  aria-pressed={throttle === preset.value && afterburner === preset.afterburner}
+                  onClick={() => { setThrottle(preset.value); setAfterburner(preset.afterburner); setIsPlaying(true); }}
+                  className={`px-2 py-1 ${hit} ${throttle === preset.value && afterburner === preset.afterburner ? sheet.chosen : sheet.idle}`}
                 >
-                  <span className="truncate">{item.label}</span>
-                  {item.state ? (
-                    <Eye className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                  ) : (
-                    <EyeOff className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                  )}
+                  {preset.label}
                 </button>
               ))}
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* =========================================================
-          BOTTOM: SIMULATOR CONTROLS & SLIDERS
-      ========================================================= */}
-      <div className="absolute bottom-4 left-4 right-4 z-10 flex flex-col lg:flex-row items-stretch lg:items-end justify-between gap-3 pointer-events-none">
-        <div className={`${cardClass} rounded-2xl p-4 pointer-events-auto flex-1 max-w-4xl transition-colors duration-300`}>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-center">
-            {/* 1. Thrust Lever & Throttle */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center text-xs">
-                <span className={`${bodyText} font-semibold flex items-center gap-1.5`}>
-                  <Gauge className="w-3.5 h-3.5 text-orange-500" /> Thrust Lever
-                </span>
-                <span className="font-mono font-bold text-orange-500">{throttle}%</span>
-              </div>
-              <input
-                type="range"
-                min="5"
-                max="100"
-                step="1"
-                value={throttle}
-                onChange={(e) => setThrottle(Number(e.target.value))}
-                className="w-full h-2 bg-gray-300 dark:bg-gray-800 rounded-lg appearance-none cursor-pointer accent-orange-500"
-              />
-              <div className={`flex justify-between text-[9px] font-medium ${mutedText}`}>
-                <button
-                  onClick={() => { setThrottle(12); setAfterburner(false); }}
-                  className="hover:text-orange-500 underline cursor-pointer"
-                >
-                  12% (Idle)
-                </button>
-                <button
-                  onClick={() => { setThrottle(65); setAfterburner(false); }}
-                  className="hover:text-orange-500 underline cursor-pointer"
-                >
-                  65% (Cruise)
-                </button>
-                <button
-                  onClick={() => { setThrottle(92); setAfterburner(false); }}
-                  className="hover:text-orange-500 underline cursor-pointer"
-                >
-                  92% (Climb)
-                </button>
-                <button
-                  onClick={() => { setThrottle(100); setAfterburner(true); }}
-                  className="hover:text-orange-500 underline cursor-pointer font-bold text-orange-500"
-                >
-                  MAX AB
-                </button>
-              </div>
-            </div>
-
-            {/* 2. Afterburner Reheat Boost */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center text-xs">
-                <span className={`${bodyText} font-semibold flex items-center gap-1.5`}>
-                  <Flame className="w-3.5 h-3.5 text-orange-500" /> Afterburner Reheat
-                </span>
-                <span className={`font-mono font-bold ${afterburner ? 'text-orange-500' : mutedText}`}>
-                  {afterburner ? 'AKTIF (+53 kN)' : 'MATI'}
-                </span>
-              </div>
-              <button
-                onClick={() => setAfterburner(!afterburner)}
-                className={`w-full py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${
-                  afterburner
-                    ? 'bg-orange-500 text-white border-orange-400 shadow-[0_0_14px_rgba(251,101,20,0.55)]'
-                    : btnSecondary
-                }`}
-              >
-                <Flame className={`w-3.5 h-3.5 ${afterburner ? 'text-white' : 'text-orange-500'}`} />
-                <span>{afterburner ? 'Afterburner Menyala' : 'Nyalakan Afterburner'}</span>
-              </button>
-              <div className={`flex justify-between text-[9px] font-medium ${mutedText}`}>
-                <span>Dry Thrust 115 kN</span>
-                <span>Wet 168 kN</span>
-              </div>
-            </div>
-
-            {/* 3. Axial Exploded View */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center text-xs">
-                <span className={`${bodyText} font-semibold flex items-center gap-1.5`}>
-                  <Maximize2 className="w-3.5 h-3.5 text-orange-500" /> Urai Bagian (Axial)
-                </span>
-                <span className="font-mono font-bold text-orange-500">{Math.round(exploded * 100)}%</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.02"
-                value={exploded}
-                onChange={(e) => setExploded(Number(e.target.value))}
-                className="w-full h-2 bg-gray-300 dark:bg-gray-800 rounded-lg appearance-none cursor-pointer accent-orange-500"
-              />
-              <div className={`flex justify-between text-[9px] font-medium ${mutedText}`}>
-                <span>0% Utuh</span>
-                <span>Pemisahan Axial</span>
-                <span>100% Terurai</span>
-              </div>
-            </div>
-
-            {/* 4. Nacelle & Core Opacity */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center text-xs">
-                <span className={`${bodyText} font-semibold flex items-center gap-1.5`}>
-                  <Sliders className="w-3.5 h-3.5 text-orange-500" /> Transparansi Casing
-                </span>
-                <span className={`font-mono font-bold ${headingText}`}>
-                  {Math.round(casingOpacity * 100)}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0.05"
-                max="0.95"
-                step="0.02"
-                value={casingOpacity}
-                onChange={(e) => setCasingOpacity(Number(e.target.value))}
-                className="w-full h-2 bg-gray-300 dark:bg-gray-800 rounded-lg appearance-none cursor-pointer accent-orange-500"
-              />
-              <div className={`flex justify-between text-[9px] font-medium ${mutedText}`}>
-                <span>Transparan</span>
-                <span>Ketebalan Duct</span>
-                <span>Solid</span>
-              </div>
-            </div>
+          <div className="flex flex-col gap-2">
+            <p className="m-0 text-base">
+              <span className="font-semibold">{afterburner ? 'On' : 'Off'}</span>
+            </p>
+            <button
+              type="button"
+              aria-pressed={afterburner}
+              onClick={() => setAfterburner(!afterburner)}
+              className={`px-3 py-3 text-left ${hit} ${afterburner ? 'bg-[#fb6514] text-[#101828]' : sheet.idle}`}
+            >
+              Afterburner
+            </button>
+            <p className="m-0 flex flex-wrap gap-x-3 gap-y-1 text-base">
+              <span>115 kN dry</span>
+              <span>168 kN wet</span>
+            </p>
           </div>
-        </div>
 
-        {/* Action Transport Buttons */}
-        <div className={`${cardClass} rounded-2xl p-2.5 pointer-events-auto flex items-center justify-end gap-2 transition-colors duration-300`}>
+          <div className="flex flex-col gap-2">
+            <p className="m-0 text-base">
+              <span className="font-semibold tabular-nums">{Math.round(exploded * 100)}%</span> exploded
+            </p>
+            <SquareRange
+              min={0}
+              max={1}
+              step={0.02}
+              value={exploded}
+              label="Exploded view"
+              onChange={(e) => setExploded(Number(e.target.value))}
+            />
+            <p className="m-0 flex flex-wrap gap-x-3 gap-y-1 text-base">
+              <span>Assembled</span>
+              <span>Separated</span>
+              <span>Exploded</span>
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="m-0 text-base">
+              <span className="font-semibold tabular-nums">{Math.round(casingOpacity * 100)}%</span> solid
+            </p>
+            <SquareRange
+              min={0.05}
+              max={0.95}
+              step={0.02}
+              value={casingOpacity}
+              label="Casing opacity"
+              onChange={(e) => setCasingOpacity(Number(e.target.value))}
+            />
+            <p className="m-0 flex flex-wrap gap-x-3 gap-y-1 text-base">
+              <span>Clear</span>
+              <span>Glass</span>
+              <span>Solid</span>
+            </p>
+          </div>
+        </section>
+
+        <div className={`pointer-events-auto flex flex-wrap items-center gap-2 p-3 ${sheet.panel}`}>
           <button
+            type="button"
             onClick={() => setIsPlaying(!isPlaying)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
-              isPlaying
-                ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-[0_6px_18px_rgba(251,101,20,0.35)]'
-                : 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/40'
-            }`}
+            className={`inline-flex items-center gap-2 px-4 py-3 ${hit} ${isPlaying ? 'bg-[#fb6514] text-[#101828]' : sheet.chosen}`}
           >
-            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-            <span>{isPlaying ? 'Pause' : 'Play'}</span>
+            {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            {isPlaying ? 'Pause' : 'Play'}
           </button>
-
           <button
+            type="button"
+            aria-pressed={autoRotateCam}
             onClick={() => setAutoRotateCam(!autoRotateCam)}
-            className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 border ${
-              autoRotateCam
-                ? 'bg-orange-500 text-white border-orange-400 shadow-[0_4px_12px_rgba(251,101,20,0.3)]'
-                : btnSecondary
-            }`}
+            className={`inline-flex items-center gap-2 px-3 py-3 ${hit} ${autoRotateCam ? sheet.chosen : sheet.idle}`}
           >
-            Auto-Orbit
+            <Orbit className="h-4 w-4" />
+            Orbit
           </button>
-
           <button
+            type="button"
             onClick={() => {
               setThrottle(45);
               setAfterburner(false);
@@ -1575,12 +1446,12 @@ export default function JetEngine({ theme = 'dark' }) {
               setShowStators(true);
               setShowAirflow(true);
               setAutoRotateCam(false);
-              setCameraPreset('iso');
+              resetCamera();
             }}
-            title="Reset Simulasi"
-            className={`p-2.5 rounded-xl transition-all cursor-pointer active:scale-95 ${btnSecondary}`}
+            className={`inline-flex items-center gap-2 px-3 py-3 ${hit} ${sheet.idle}`}
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="h-4 w-4" />
+            Reset
           </button>
         </div>
       </div>
