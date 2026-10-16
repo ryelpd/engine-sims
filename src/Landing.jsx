@@ -4,6 +4,13 @@ import './landing.css';
 
 const machines = [
   {
+    path: '/gearbox',
+    name: 'Gearbox',
+    spec: '5-Speed + R',
+    image: '/lab/generated/v8.png',
+    line: 'Constant-mesh manual transmission with synchromesh sleeves, shift forks, friction clutch, and reverse idler.'
+  },
+  {
     path: '/inline-5',
     name: 'Inline-5 2.5T',
     spec: '1-2-4-5-3',

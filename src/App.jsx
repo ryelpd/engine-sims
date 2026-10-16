@@ -7,10 +7,12 @@ import DieselEngine from './DieselEngine.jsx';
 import TwoStrokeEngine from './TwoStrokeEngine.jsx';
 import RotaryEngine from './RotaryEngine.jsx';
 import Inline5Engine from './Inline5Engine.jsx';
+import GearboxSim from './GearboxSim.jsx';
 import Landing from './Landing.jsx';
-import { Cpu, Wind, Flame, Droplets, Repeat, Triangle, Gauge, Sun, Moon } from 'lucide-react';
+import { Cpu, Wind, Flame, Droplets, Repeat, Triangle, Gauge, Cog, Sun, Moon } from 'lucide-react';
 
 const engines = [
+  { path: '/gearbox', label: 'Gearbox', icon: Cog, Component: GearboxSim },
   { path: '/inline-5', label: 'Inline-5 2.5T', icon: Gauge, Component: Inline5Engine },
   { path: '/rotary', label: 'Rotary', icon: Triangle, Component: RotaryEngine },
   { path: '/2-stroke', label: '2-stroke', icon: Repeat, Component: TwoStrokeEngine },
