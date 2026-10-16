@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import V8Engine from './V8Engine.jsx';
 import JetEngine from './JetEngine.jsx';
-import { Cpu, Wind, Sun, Moon } from 'lucide-react';
+import FourStrokeEngine from './FourStrokeEngine.jsx';
+import DieselEngine from './DieselEngine.jsx';
+import { Cpu, Wind, Flame, Droplets, Sun, Moon } from 'lucide-react';
 
 export default function App() {
-  const [activeEngine, setActiveEngine] = useState('v8'); // 'v8' | 'jet'
+  const [activeEngine, setActiveEngine] = useState('diesel'); // 'diesel' | 'four_stroke' | 'v8' | 'jet'
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('engine_theme') || 'dark';
   });
@@ -27,7 +29,11 @@ export default function App() {
       }`}>
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-[0_4px_12px_rgba(251,101,20,0.35)] shrink-0">
-            {activeEngine === 'v8' ? (
+            {activeEngine === 'diesel' ? (
+              <Droplets className="w-5 h-5 text-white stroke-[2.2]" />
+            ) : activeEngine === 'four_stroke' ? (
+              <Flame className="w-5 h-5 text-white stroke-[2.2]" />
+            ) : activeEngine === 'v8' ? (
               <Cpu className="w-5 h-5 text-white stroke-[2.2]" />
             ) : (
               <Wind className="w-5 h-5 text-white stroke-[2.2]" />
@@ -49,12 +55,40 @@ export default function App() {
         </div>
 
         {/* Engine Switcher Tabs */}
-        <div className={`flex items-center p-1 rounded-xl border ${
+        <div className={`flex items-center p-1 rounded-xl border gap-1 overflow-x-auto ${
           isDark ? 'bg-[#161f30] border-gray-800' : 'bg-gray-100 border-gray-200'
         }`}>
           <button
+            onClick={() => setActiveEngine('diesel')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
+              activeEngine === 'diesel'
+                ? 'bg-orange-500 text-white shadow-[0_2px_8px_rgba(251,101,20,0.35)]'
+                : isDark
+                  ? 'text-gray-400 hover:text-white'
+                  : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Droplets className="w-3.5 h-3.5" />
+            <span>Mesin Diesel</span>
+          </button>
+
+          <button
+            onClick={() => setActiveEngine('four_stroke')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
+              activeEngine === 'four_stroke'
+                ? 'bg-orange-500 text-white shadow-[0_2px_8px_rgba(251,101,20,0.35)]'
+                : isDark
+                  ? 'text-gray-400 hover:text-white'
+                  : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5" />
+            <span>Mesin 4-Tak</span>
+          </button>
+
+          <button
             onClick={() => setActiveEngine('v8')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
               activeEngine === 'v8'
                 ? 'bg-orange-500 text-white shadow-[0_2px_8px_rgba(251,101,20,0.35)]'
                 : isDark
@@ -68,7 +102,7 @@ export default function App() {
 
           <button
             onClick={() => setActiveEngine('jet')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
               activeEngine === 'jet'
                 ? 'bg-orange-500 text-white shadow-[0_2px_8px_rgba(251,101,20,0.35)]'
                 : isDark
@@ -86,7 +120,7 @@ export default function App() {
           <button
             onClick={toggleTheme}
             title={`Beralih ke mode ${isDark ? 'terang' : 'gelap'}`}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all active:scale-95 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer active:scale-95 ${
               isDark
                 ? 'bg-[#161f30] border-gray-700 text-orange-400 hover:bg-[#1f2c42]'
                 : 'bg-orange-50 border-orange-200 text-orange-600 hover:bg-orange-100'
@@ -98,7 +132,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Simulation Viewport (V8 or Jet Engine) */}
+      {/* Main Simulation Viewport */}
       <main className="relative flex-1 w-full h-[calc(100vh-53px)] overflow-hidden">
         {/* Ambient Glow Orbs */}
         <div 
@@ -114,7 +148,11 @@ export default function App() {
           aria-hidden="true" 
         />
 
-        {activeEngine === 'v8' ? (
+        {activeEngine === 'diesel' ? (
+          <DieselEngine theme={theme} />
+        ) : activeEngine === 'four_stroke' ? (
+          <FourStrokeEngine theme={theme} />
+        ) : activeEngine === 'v8' ? (
           <V8Engine theme={theme} />
         ) : (
           <JetEngine theme={theme} />

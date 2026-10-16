@@ -1009,9 +1009,23 @@ export default function V8Engine({ theme = 'dark' }) {
 
   const isDark = theme === 'dark';
 
+  const cardClass = isDark
+    ? 'bg-[#101828]/90 backdrop-blur-xl border border-gray-800 shadow-[0_16px_36px_rgba(0,0,0,0.45)]'
+    : 'bg-white/95 backdrop-blur-xl border border-gray-200 shadow-[0_16px_38px_rgba(16,24,40,0.08)]';
+  const subCardClass = isDark
+    ? 'bg-[#161f30]/90 border border-gray-800'
+    : 'bg-gray-50/90 border border-gray-200/80';
+  const headingText = isDark ? 'text-white' : 'text-gray-900';
+  const bodyText = isDark ? 'text-gray-300' : 'text-gray-600';
+  const mutedText = isDark ? 'text-gray-400' : 'text-gray-500';
+  const dividerClass = isDark ? 'border-gray-800' : 'border-gray-200';
+  const btnSecondary = isDark
+    ? 'bg-[#161f30] hover:bg-[#1f2c42] text-gray-300 border border-gray-700'
+    : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-200 shadow-xs';
+
   return (
-    <div className="relative w-full h-full flex flex-col md:flex-row overflow-hidden">
-      {/* 3D Viewport */}
+    <div className="relative w-full h-full overflow-hidden select-none font-sans">
+      {/* 3D Canvas Viewport */}
       <div
         ref={mountRef}
         onPointerDown={handlePointerDown}
@@ -1020,50 +1034,61 @@ export default function V8Engine({ theme = 'dark' }) {
         onPointerLeave={handlePointerUp}
         onWheel={handleWheel}
         onContextMenu={(e) => e.preventDefault()}
-        className="flex-1 h-full cursor-grab active:cursor-grabbing relative z-0"
+        className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing z-0"
       />
 
-      {/* Top Left Telemetry Overlay */}
-      <div className="absolute top-4 left-4 right-4 md:right-auto pointer-events-none flex flex-col gap-3 max-w-lg z-10">
-        <div className={`backdrop-blur-xl border rounded-2xl p-4 shadow-[0_18px_40px_rgba(15,23,42,0.18)] pointer-events-auto transition-colors duration-300 ${
-          isDark ? 'bg-[#101828]/90 border-gray-800' : 'bg-white/95 border-gray-200 shadow-xl'
-        }`}>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-[0_8px_18px_rgba(251,101,20,0.35)] shrink-0">
-                <Cpu className="w-5 h-5 text-white stroke-[2.2]" />
+      {/* =========================================================
+          TOP-LEFT: HEADER, FIRING ORDER & ENGINE TELEMETRY
+      ========================================================= */}
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2.5 max-w-xs sm:max-w-md pointer-events-none">
+        <div className={`${cardClass} rounded-2xl p-4 pointer-events-auto transition-colors duration-300`}>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-orange-500/15 border border-orange-500/30">
+                <Cpu className="w-5 h-5 text-orange-500" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className={`text-base font-bold tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    V8 90° CROSS-PLANE
-                  </h1>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 border border-orange-500/25">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-orange-500"></span>
-                    </span>
-                    4-STROKE CAD
-                  </span>
-                </div>
-                <p className={`text-xs font-normal ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Simulasi Slider-Crank Kinematika & Siklus Pembakaran
-                </p>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-500/30 bg-orange-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-orange-500 mb-0.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />
+                  Cross-Plane 90° • 4-Stroke CAD
+                </span>
+                <h1 className={`text-base sm:text-lg font-extrabold tracking-tight ${headingText}`}>
+                  SIMULASI V8 ENGINE
+                </h1>
               </div>
+            </div>
+
+            {/* Camera View Presets */}
+            <div className="hidden sm:flex items-center gap-1">
+              {[
+                { id: 'iso', label: 'ISO' },
+                { id: 'front', label: 'Depan' },
+                { id: 'side', label: 'Samping' },
+                { id: 'top', label: 'Atas' }
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setCameraPreset(p.id)}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer active:scale-95 ${btnSecondary}`}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className={`mt-3.5 pt-3 border-t ${isDark ? 'border-gray-800/80' : 'border-gray-100'}`}>
-            <div className="flex items-center justify-between text-xs mb-2">
-              <span className={`flex items-center gap-1.5 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                <Flame className="w-3.5 h-3.5 text-orange-500" />
-                Urutan Pengapian (Firing Order)
+          {/* Firing Order Monitor (1-8-4-3-6-5-7-2) */}
+          <div className={`mt-2 pt-2.5 border-t ${dividerClass}`}>
+            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider mb-1.5">
+              <span className={`font-bold flex items-center gap-1 ${mutedText}`}>
+                <Flame className="w-3.5 h-3.5 text-orange-500" /> Urutan Pengapian (Firing Order)
               </span>
-              <span className="font-mono text-xs text-orange-500 font-semibold bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20">
+              <span className="font-mono font-bold text-orange-500">
                 {crankDeg}° / 720°
               </span>
             </div>
-            <div className="grid grid-cols-8 gap-1.5">
+
+            <div className="grid grid-cols-8 gap-1">
               {ENGINE_SPECS.firingOrder.map((cylNum) => {
                 const isFiring = activeCylinderInfo === cylNum && isPlaying;
                 return (
@@ -1071,10 +1096,10 @@ export default function V8Engine({ theme = 'dark' }) {
                     key={cylNum}
                     className={`text-center py-1.5 rounded-lg font-mono text-xs font-bold transition-all duration-150 border ${
                       isFiring
-                        ? 'bg-orange-500 text-white border-orange-400 shadow-[0_0_16px_rgba(251,101,20,0.7)] scale-105'
+                        ? 'bg-orange-500 text-white border-orange-400 shadow-[0_0_14px_rgba(251,101,20,0.7)] scale-105'
                         : isDark
-                          ? 'bg-[#161f30] text-gray-400 border-gray-800 hover:border-gray-700'
-                          : 'bg-gray-100 text-gray-600 border-gray-200 hover:border-gray-300'
+                          ? 'bg-[#161f30] text-gray-400 border-gray-800'
+                          : 'bg-gray-100 text-gray-600 border-gray-200'
                     }`}
                   >
                     #{cylNum}
@@ -1083,300 +1108,276 @@ export default function V8Engine({ theme = 'dark' }) {
               })}
             </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-3 gap-2.5 pointer-events-auto">
-          <div className={`backdrop-blur-xl border rounded-xl p-3 shadow-md hover:border-orange-500/40 transition-colors ${
-            isDark ? 'bg-[#101828]/90 border-gray-800' : 'bg-white/95 border-gray-200'
-          }`}>
-            <div className={`text-[10px] font-semibold uppercase tracking-wider flex items-center justify-between ${
-              isDark ? 'text-gray-400' : 'text-gray-500'
-            }`}>
-              <span>Kecepatan</span>
-              <Gauge className="w-3.5 h-3.5 text-orange-500" />
+          {/* Live Telemetry Readouts */}
+          <div className={`grid grid-cols-4 gap-1.5 text-xs border-t ${dividerClass} pt-2.5 mt-2.5`}>
+            <div className={`${subCardClass} rounded-xl px-2 py-1.5`}>
+              <span className={`${mutedText} block text-[9px] uppercase font-bold`}>Putaran</span>
+              <span className="font-mono text-sm font-extrabold text-orange-500">{isPlaying ? rpm : 0}</span>
+              <span className={`text-[9px] ml-0.5 ${mutedText}`}>RPM</span>
             </div>
-            <div className={`text-xl font-bold font-mono mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {isPlaying ? rpm : 0} <span className="text-xs font-semibold text-orange-500">RPM</span>
+            <div className={`${subCardClass} rounded-xl px-2 py-1.5`}>
+              <span className={`${mutedText} block text-[9px] uppercase font-bold`}>Daya Mesin</span>
+              <span className={`font-mono text-sm font-extrabold ${headingText}`}>{isPlaying ? hp : 0}</span>
+              <span className={`text-[9px] ml-0.5 ${mutedText}`}>HP</span>
             </div>
-          </div>
-
-          <div className={`backdrop-blur-xl border rounded-xl p-3 shadow-md hover:border-orange-500/40 transition-colors ${
-            isDark ? 'bg-[#101828]/90 border-gray-800' : 'bg-white/95 border-gray-200'
-          }`}>
-            <div className={`text-[10px] font-semibold uppercase tracking-wider flex items-center justify-between ${
-              isDark ? 'text-gray-400' : 'text-gray-500'
-            }`}>
-              <span>Daya Mesin</span>
-              <Zap className="w-3.5 h-3.5 text-orange-500" />
+            <div className={`${subCardClass} rounded-xl px-2 py-1.5`}>
+              <span className={`${mutedText} block text-[9px] uppercase font-bold`}>Torsi Maks</span>
+              <span className="font-mono text-sm font-extrabold text-amber-500">{isPlaying ? torque : 0}</span>
+              <span className={`text-[9px] ml-0.5 ${mutedText}`}>Nm</span>
             </div>
-            <div className={`text-xl font-bold font-mono mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {isPlaying ? hp : 0} <span className="text-xs font-semibold text-orange-500">HP</span>
-            </div>
-          </div>
-
-          <div className={`backdrop-blur-xl border rounded-xl p-3 shadow-md hover:border-orange-500/40 transition-colors ${
-            isDark ? 'bg-[#101828]/90 border-gray-800' : 'bg-white/95 border-gray-200'
-          }`}>
-            <div className={`text-[10px] font-semibold uppercase tracking-wider flex items-center justify-between ${
-              isDark ? 'text-gray-400' : 'text-gray-500'
-            }`}>
-              <span>Torsi Maks</span>
-              <Activity className="w-3.5 h-3.5 text-orange-500" />
-            </div>
-            <div className={`text-xl font-bold font-mono mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {isPlaying ? torque : 0} <span className="text-xs font-semibold text-orange-500">Nm</span>
+            <div className={`${subCardClass} rounded-xl px-2 py-1.5`}>
+              <span className={`${mutedText} block text-[9px] uppercase font-bold`}>Kapasitas</span>
+              <span className="font-mono text-sm font-extrabold text-emerald-500">5.0L</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Right Control Sidebar */}
-      <div className={`w-full md:w-88 backdrop-blur-2xl border-t md:border-t-0 md:border-l p-5 flex flex-col gap-4 overflow-y-auto max-h-[48vh] md:max-h-screen z-10 transition-colors duration-300 ${
-        isDark ? 'bg-[#101828]/95 border-gray-800 shadow-[0_18px_40px_rgba(15,23,42,0.4)]' : 'bg-white/95 border-gray-200 shadow-2xl'
-      }`}>
-        <div className={`flex items-center justify-between pb-3 border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
-          <div className="flex items-center gap-2">
-            <Sliders className="w-4 h-4 text-orange-500" />
-            <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
-              Panel Kontrol V8
-            </span>
+      {/* =========================================================
+          TOP-RIGHT: SHADING MODE & COMPONENT VISIBILITY
+      ========================================================= */}
+      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2.5 w-64 pointer-events-none">
+        <div className={`${cardClass} rounded-2xl p-3.5 pointer-events-auto transition-colors duration-300`}>
+          <div className={`text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5 ${mutedText}`}>
+            <Layers className="w-3.5 h-3.5 text-orange-500" /> Mode Visualisasi CAD
           </div>
-          <span className="text-[11px] font-medium text-orange-500 bg-orange-500/10 px-2.5 py-0.5 rounded-full border border-orange-500/20">
-            Cross-Plane
-          </span>
-        </div>
-
-        <div>
-          <label className={`text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5 mb-2 ${
-            isDark ? 'text-gray-400' : 'text-gray-600'
-          }`}>
-            <Layers className="w-3.5 h-3.5 text-orange-500" /> Mode Render Visual
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            {['realistic', 'raw', 'wireframe', 'shaded_wire'].map((mode) => {
-              const labelMap = {
-                realistic: 'Realistic PBR',
-                raw: 'Raw Shaded',
-                wireframe: 'Wireframe',
-                shaded_wire: 'Shaded + Wire'
-              };
-              const IconComp = mode === 'realistic' ? Box : mode === 'raw' ? Layers : mode === 'wireframe' ? Grid : Maximize2;
-              const isActive = renderMode === mode;
+          <div className="grid grid-cols-2 gap-1.5">
+            {[
+              { id: 'realistic', label: 'Realistic PBR', icon: Sparkles },
+              { id: 'raw', label: 'Raw Shaded', icon: Box },
+              { id: 'wireframe', label: 'Wireframe', icon: Grid },
+              { id: 'shaded_wire', label: 'Shaded + Wire', icon: Cpu }
+            ].map((mode) => {
+              const IconComp = mode.icon;
+              const active = renderMode === mode.id;
               return (
                 <button
-                  key={mode}
-                  onClick={() => setRenderMode(mode)}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium border transition-all active:scale-[0.98] ${
-                    isActive
-                      ? 'bg-orange-500 border-orange-500 text-white shadow-[0_4px_14px_rgba(251,101,20,0.3)] font-semibold'
-                      : isDark
-                        ? 'bg-[#161f30] border-gray-800 text-gray-300 hover:border-gray-700 hover:text-white'
-                        : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300'
+                  key={mode.id}
+                  onClick={() => setRenderMode(mode.id)}
+                  className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer active:scale-95 ${
+                    active
+                      ? 'bg-orange-500 text-white shadow-[0_4px_14px_rgba(251,101,20,0.35)] border border-orange-400'
+                      : btnSecondary
                   }`}
                 >
-                  <IconComp className="w-3.5 h-3.5 shrink-0" />
-                  {labelMap[mode]}
+                  <IconComp className="w-3.5 h-3.5" />
+                  <span>{mode.label}</span>
                 </button>
               );
             })}
           </div>
-        </div>
 
-        <div className={`border rounded-xl p-3.5 ${
-          isDark ? 'bg-[#161f30] border-gray-800' : 'bg-gray-50 border-gray-200'
-        }`}>
-          <div className="flex items-center justify-between mb-2.5">
-            <span className={`text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
-              isDark ? 'text-gray-300' : 'text-gray-700'
-            }`}>
-              <Sliders className="w-3.5 h-3.5 text-orange-500" /> Throttle & RPM
-            </span>
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className={`px-3 py-1.5 rounded-lg border text-xs flex items-center gap-1.5 font-semibold transition active:scale-[0.98] ${
-                isPlaying
-                  ? 'bg-orange-500/15 border-orange-500/30 text-orange-500 hover:bg-orange-500/25'
-                  : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/25'
-              }`}
-            >
-              {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-              {isPlaying ? 'Pause' : 'Putar'}
-            </button>
-          </div>
-
-          <input
-            type="range"
-            min="60"
-            max="7000"
-            step="20"
-            value={rpm}
-            onChange={(e) => setRpm(Number(e.target.value))}
-            className="w-full accent-orange-500 cursor-pointer h-1.5 bg-gray-300 dark:bg-gray-700 rounded-lg"
-          />
-
-          <div className="grid grid-cols-4 gap-1 mt-2.5">
-            {[
-              { label: 'Slow 120', val: 120 },
-              { label: 'Idle 800', val: 800 },
-              { label: 'Cruise 3.5k', val: 3500 },
-              { label: 'Redline 6.8k', val: 6800 }
-            ].map((p) => (
-              <button
-                key={p.val}
-                onClick={() => setRpm(p.val)}
-                className={`py-1 px-1.5 text-center rounded-lg border text-[10px] font-medium transition ${
-                  isDark
-                    ? 'bg-[#101828] border-gray-800 hover:border-orange-500/50 hover:text-orange-400 text-gray-400'
-                    : 'bg-white border-gray-200 hover:border-orange-500/50 hover:text-orange-600 text-gray-600'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className={`border rounded-xl p-3.5 flex flex-col gap-3.5 ${
-          isDark ? 'bg-[#161f30] border-gray-800' : 'bg-gray-50 border-gray-200'
-        }`}>
-          <div>
-            <div className="flex justify-between text-xs mb-1.5">
-              <span className={`font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Exploded Assembly View
-              </span>
-              <span className="font-mono text-orange-500 font-semibold">{Math.round(exploded * 100)}%</span>
+          <div className={`mt-3 pt-2.5 border-t ${dividerClass}`}>
+            <div className={`text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5 ${mutedText}`}>
+              <Eye className="w-3.5 h-3.5 text-orange-500" /> Visibilitas Komponen
             </div>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.02"
-              value={exploded}
-              onChange={(e) => setExploded(Number(e.target.value))}
-              className="w-full accent-orange-500 cursor-pointer h-1.5 bg-gray-300 dark:bg-gray-700 rounded-lg"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs mb-1.5">
-              <span className={`font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Transparansi Blok Silinder
-              </span>
-              <span className="font-mono text-orange-500 font-semibold">{Math.round(blockOpacity * 100)}%</span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { label: 'Engine Block', state: showBlock, setter: setShowBlock },
+                { label: 'DOHC Heads', state: showHeads, setter: setShowHeads },
+                { label: 'Valvetrain', state: showValves, setter: setShowValves },
+                { label: 'Combustion', state: showCombustion, setter: setShowCombustion }
+              ].map((item, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => item.setter(!item.state)}
+                  className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer active:scale-95 border ${
+                    item.state
+                      ? isDark
+                        ? 'bg-[#161f30] border-orange-500/40 text-gray-200'
+                        : 'bg-orange-50/70 border-orange-300 text-gray-800'
+                      : isDark
+                      ? 'bg-gray-900/40 border-gray-800/80 text-gray-500'
+                      : 'bg-gray-100/70 border-gray-200 text-gray-400'
+                  }`}
+                >
+                  <span className="truncate">{item.label}</span>
+                  {item.state ? (
+                    <Eye className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                  ) : (
+                    <EyeOff className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  )}
+                </button>
+              ))}
             </div>
-            <input
-              type="range"
-              min="0.05"
-              max="0.95"
-              step="0.05"
-              value={blockOpacity}
-              onChange={(e) => setBlockOpacity(Number(e.target.value))}
-              className="w-full accent-orange-500 cursor-pointer h-1.5 bg-gray-300 dark:bg-gray-700 rounded-lg"
-            />
+          </div>
+        </div>
+      </div>
+
+      {/* =========================================================
+          BOTTOM: SIMULATOR CONTROLS & SLIDERS
+      ========================================================= */}
+      <div className="absolute bottom-4 left-4 right-4 z-10 flex flex-col lg:flex-row items-stretch lg:items-end justify-between gap-3 pointer-events-none">
+        <div className={`${cardClass} rounded-2xl p-4 pointer-events-auto flex-1 max-w-4xl transition-colors duration-300`}>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-center">
+            {/* 1. Engine RPM Slider */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className={`${bodyText} font-semibold flex items-center gap-1.5`}>
+                  <Gauge className="w-3.5 h-3.5 text-orange-500" /> Throttle & RPM
+                </span>
+                <span className="font-mono font-bold text-orange-500">{rpm} RPM</span>
+              </div>
+              <input
+                type="range"
+                min="60"
+                max="7000"
+                step="20"
+                value={rpm}
+                onChange={(e) => setRpm(Number(e.target.value))}
+                className="w-full h-2 bg-gray-300 dark:bg-gray-800 rounded-lg appearance-none cursor-pointer accent-orange-500"
+              />
+              <div className={`flex justify-between text-[9px] font-medium ${mutedText}`}>
+                <button
+                  onClick={() => setRpm(120)}
+                  className="hover:text-orange-500 underline cursor-pointer"
+                >
+                  120 (Slow)
+                </button>
+                <button
+                  onClick={() => setRpm(800)}
+                  className="hover:text-orange-500 underline cursor-pointer"
+                >
+                  800 (Idle)
+                </button>
+                <button
+                  onClick={() => setRpm(3500)}
+                  className="hover:text-orange-500 underline cursor-pointer"
+                >
+                  3.5k (Cruise)
+                </button>
+                <button
+                  onClick={() => setRpm(6800)}
+                  className="hover:text-orange-500 underline cursor-pointer"
+                >
+                  6.8k (Redline)
+                </button>
+              </div>
+            </div>
+
+            {/* 2. Crankshaft Angle / Firing Progress */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className={`${bodyText} font-semibold flex items-center gap-1.5`}>
+                  <Compass className="w-3.5 h-3.5 text-orange-500" /> Sudut Kruk As
+                </span>
+                <span className="font-mono font-bold text-orange-500">{crankDeg}°</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="719"
+                step="1"
+                value={crankDeg}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setCrankDeg(val);
+                }}
+                className="w-full h-2 bg-gray-300 dark:bg-gray-800 rounded-lg appearance-none cursor-pointer accent-orange-500"
+              />
+              <div className={`flex justify-between text-[9px] font-medium ${mutedText}`}>
+                <span>0° Cyl 1</span>
+                <span>360° Cyl 6</span>
+                <span>720°</span>
+              </div>
+            </div>
+
+            {/* 3. Exploded Assembly View */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className={`${bodyText} font-semibold flex items-center gap-1.5`}>
+                  <Maximize2 className="w-3.5 h-3.5 text-orange-500" /> Urai Bagian (Exploded)
+                </span>
+                <span className="font-mono font-bold text-orange-500">{Math.round(exploded * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.02"
+                value={exploded}
+                onChange={(e) => setExploded(Number(e.target.value))}
+                className="w-full h-2 bg-gray-300 dark:bg-gray-800 rounded-lg appearance-none cursor-pointer accent-orange-500"
+              />
+              <div className={`flex justify-between text-[9px] font-medium ${mutedText}`}>
+                <span>0% Utuh</span>
+                <span>Pemisahan CAD</span>
+                <span>100% Terurai</span>
+              </div>
+            </div>
+
+            {/* 4. Transparansi Blok Silinder */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className={`${bodyText} font-semibold flex items-center gap-1.5`}>
+                  <Sliders className="w-3.5 h-3.5 text-orange-500" /> Transparansi Blok
+                </span>
+                <span className={`font-mono font-bold ${headingText}`}>
+                  {Math.round(blockOpacity * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0.05"
+                max="0.95"
+                step="0.02"
+                value={blockOpacity}
+                onChange={(e) => setBlockOpacity(Number(e.target.value))}
+                className="w-full h-2 bg-gray-300 dark:bg-gray-800 rounded-lg appearance-none cursor-pointer accent-orange-500"
+              />
+              <div className={`flex justify-between text-[9px] font-medium ${mutedText}`}>
+                <span>Transparan</span>
+                <span>Ketebalan Kaca</span>
+                <span>Solid</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div>
-          <label className={`text-[11px] font-semibold uppercase tracking-wider block mb-2 ${
-            isDark ? 'text-gray-400' : 'text-gray-600'
-          }`}>
-            Visibilitas Komponen Mesin
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setShowBlock(!showBlock)}
-              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium border transition active:scale-[0.98] ${
-                showBlock
-                  ? isDark ? 'bg-[#161f30] border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900 shadow-sm'
-                  : isDark ? 'bg-[#101828] border-gray-800 text-gray-500' : 'bg-gray-100 border-gray-200 text-gray-400'
-              }`}
-            >
-              <span>Engine Block</span>
-              {showBlock ? <Eye className="w-3.5 h-3.5 text-orange-500" /> : <EyeOff className="w-3.5 h-3.5" />}
-            </button>
+        {/* Action Transport Buttons */}
+        <div className={`${cardClass} rounded-2xl p-2.5 pointer-events-auto flex items-center justify-end gap-2 transition-colors duration-300`}>
+          <button
+            onClick={() => setIsPlaying(!isPlaying)}
+            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
+              isPlaying
+                ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-[0_6px_18px_rgba(251,101,20,0.35)]'
+                : 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/40'
+            }`}
+          >
+            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            <span>{isPlaying ? 'Pause' : 'Play'}</span>
+          </button>
 
-            <button
-              onClick={() => setShowHeads(!showHeads)}
-              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium border transition active:scale-[0.98] ${
-                showHeads
-                  ? isDark ? 'bg-[#161f30] border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900 shadow-sm'
-                  : isDark ? 'bg-[#101828] border-gray-800 text-gray-500' : 'bg-gray-100 border-gray-200 text-gray-400'
-              }`}
-            >
-              <span>DOHC Heads</span>
-              {showHeads ? <Eye className="w-3.5 h-3.5 text-orange-500" /> : <EyeOff className="w-3.5 h-3.5" />}
-            </button>
+          <button
+            onClick={() => setAutoRotateCam(!autoRotateCam)}
+            className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 border ${
+              autoRotateCam
+                ? 'bg-orange-500 text-white border-orange-400 shadow-[0_4px_12px_rgba(251,101,20,0.3)]'
+                : btnSecondary
+            }`}
+          >
+            Auto-Orbit
+          </button>
 
-            <button
-              onClick={() => setShowValves(!showValves)}
-              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium border transition active:scale-[0.98] ${
-                showValves
-                  ? isDark ? 'bg-[#161f30] border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900 shadow-sm'
-                  : isDark ? 'bg-[#101828] border-gray-800 text-gray-500' : 'bg-gray-100 border-gray-200 text-gray-400'
-              }`}
-            >
-              <span>Valvetrain</span>
-              {showValves ? <Eye className="w-3.5 h-3.5 text-orange-500" /> : <EyeOff className="w-3.5 h-3.5" />}
-            </button>
-
-            <button
-              onClick={() => setShowCombustion(!showCombustion)}
-              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium border transition active:scale-[0.98] ${
-                showCombustion
-                  ? isDark ? 'bg-[#161f30] border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900 shadow-sm'
-                  : isDark ? 'bg-[#101828] border-gray-800 text-gray-500' : 'bg-gray-100 border-gray-200 text-gray-400'
-              }`}
-            >
-              <span>Combustion</span>
-              <Flame className={`w-3.5 h-3.5 ${showCombustion ? 'text-orange-500' : isDark ? 'text-gray-600' : 'text-gray-300'}`} />
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className={`text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
-              isDark ? 'text-gray-400' : 'text-gray-600'
-            }`}>
-              <Compass className="w-3.5 h-3.5 text-orange-500" /> Sudut Kamera
-            </label>
-            <button
-              onClick={() => setAutoRotateCam(!autoRotateCam)}
-              className={`text-xs flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition active:scale-[0.98] ${
-                autoRotateCam
-                  ? 'bg-orange-500/15 border-orange-500/30 text-orange-500 font-semibold'
-                  : isDark 
-                    ? 'bg-[#161f30] border-gray-800 text-gray-400 hover:text-gray-200' 
-                    : 'bg-gray-100 border-gray-200 text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <RotateCcw className={`w-3 h-3 ${autoRotateCam ? 'animate-spin' : ''}`} /> Auto-Orbit
-            </button>
-          </div>
-          <div className="grid grid-cols-4 gap-1.5">
-            {['iso', 'front', 'side', 'top'].map((view) => (
-              <button
-                key={view}
-                onClick={() => setCameraPreset(view)}
-                className={`px-2 py-1.5 rounded-lg border text-xs font-semibold uppercase transition active:scale-[0.98] ${
-                  isDark
-                    ? 'bg-[#161f30] hover:bg-[#1d293d] border-gray-800 hover:border-orange-500/50 text-gray-300 hover:text-white'
-                    : 'bg-white hover:bg-gray-100 border-gray-200 hover:border-orange-500/50 text-gray-700 hover:text-gray-900 shadow-sm'
-                }`}
-              >
-                {view}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className={`mt-auto pt-3 border-t flex items-start gap-2 text-[11px] leading-relaxed ${
-          isDark ? 'border-gray-800/80 text-gray-400' : 'border-gray-200 text-gray-500'
-        }`}>
-          <Info className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
-          <span>
-            Mouse: <strong className={isDark ? 'text-gray-300' : 'text-gray-700'}>Drag</strong> rotasi, <strong className={isDark ? 'text-gray-300' : 'text-gray-700'}>Scroll</strong> zoom, <strong className={isDark ? 'text-gray-300' : 'text-gray-700'}>Shift+Drag / Klik Kanan</strong> pan.
-          </span>
+          <button
+            onClick={() => {
+              setRpm(800);
+              setExploded(0);
+              setBlockOpacity(0.28);
+              setRenderMode('realistic');
+              setShowBlock(true);
+              setShowHeads(true);
+              setShowValves(true);
+              setShowCombustion(true);
+              setAutoRotateCam(false);
+              setCameraPreset('iso');
+            }}
+            title="Reset Simulasi"
+            className={`p-2.5 rounded-xl transition-all cursor-pointer active:scale-95 ${btnSecondary}`}
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>
