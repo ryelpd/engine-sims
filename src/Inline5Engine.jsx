@@ -520,6 +520,58 @@ export default function Inline5Engine({ theme = 'dark' }) {
     const fullLinerGeo = new THREE.CylinderGeometry(pR + 0.05, pR + 0.05, linerHeight, 32, 1, true);
     const cutLinerGeo = new THREE.CylinderGeometry(pR + 0.05, pR + 0.05, linerHeight, 32, 1, true, Math.PI * 0.85, Math.PI * 1.3);
 
+    // Siamese Cast-Aluminum Water Jacket Barrels (Full & Cutaway so block stays organic in Cutaway mode)
+    const jacketHeight = linerHeight + 0.12;
+    const fullJacketGeo = new THREE.CylinderGeometry(pR + 0.34, pR + 0.31, jacketHeight, 32, 1, false);
+    const cutJacketGeo = new THREE.CylinderGeometry(pR + 0.34, pR + 0.31, jacketHeight, 32, 1, false, Math.PI * 0.72, Math.PI * 1.48);
+    const fullJacketRibGeo = new THREE.TorusGeometry(pR + 0.36, 0.042, 10, 32);
+    fullJacketRibGeo.rotateX(Math.PI / 2);
+    const cutJacketRibGeo = new THREE.TorusGeometry(pR + 0.36, 0.042, 10, 32, Math.PI * 1.48);
+    cutJacketRibGeo.rotateX(Math.PI / 2);
+    cutJacketRibGeo.rotateY(Math.PI * 0.22);
+
+    // Helical Valve Spring Geometry (5-turn coil around each of the 20 valve stems)
+    const springPts = [];
+    const springTurns = 5;
+    const springSamples = 50;
+    for (let s = 0; s <= springSamples; s++) {
+      const t = s / springSamples;
+      const ang = t * springTurns * Math.PI * 2;
+      const sr = 0.105;
+      springPts.push(new THREE.Vector3(Math.cos(ang) * sr, 0.14 + t * 0.44, Math.sin(ang) * sr));
+    }
+    const valveSpringCurve = new THREE.CatmullRomCurve3(springPts);
+    const valveSpringGeo = new THREE.TubeGeometry(valveSpringCurve, 44, 0.021, 8, false);
+    const valveRetainerGeo = new THREE.CylinderGeometry(0.125, 0.09, 0.06, 16);
+    valveRetainerGeo.translate(0, 0.60, 0);
+
+    // Sculpted Red-Top TFSI Pencil Ignition Coil Pack Geometries
+    const coilShape = new THREE.Shape();
+    coilShape.moveTo(-0.18, -0.16);
+    coilShape.lineTo(0.18, -0.16);
+    coilShape.quadraticCurveTo(0.24, -0.16, 0.24, -0.08);
+    coilShape.lineTo(0.26, 0.14);
+    coilShape.quadraticCurveTo(0.26, 0.22, 0.16, 0.22);
+    coilShape.lineTo(-0.16, 0.22);
+    coilShape.quadraticCurveTo(-0.26, 0.22, -0.24, 0.10);
+    coilShape.lineTo(-0.22, -0.10);
+    coilShape.quadraticCurveTo(-0.22, -0.16, -0.18, -0.16);
+    const coilTopGeo = new THREE.ExtrudeGeometry(coilShape, {
+      depth: 0.14,
+      bevelEnabled: true,
+      bevelSegments: 3,
+      steps: 1,
+      bevelSize: 0.028,
+      bevelThickness: 0.028
+    });
+    coilTopGeo.rotateX(Math.PI / 2);
+    coilTopGeo.translate(0, 0.07, 0);
+
+    const coilBootGeo = new THREE.CylinderGeometry(0.125, 0.105, 0.56, 18);
+    const coilFlangeGeo = new THREE.CylinderGeometry(0.21, 0.21, 0.05, 6);
+    const coilPlugSocketGeo = new THREE.CylinderGeometry(0.065, 0.065, 0.22, 12);
+    coilPlugSocketGeo.rotateZ(Math.PI / 2 - 0.18);
+
     for (let i = 0; i < 5; i++) {
       const zPos = zStart + i * boreSpacing;
       const cylNumber = i + 1;
@@ -545,12 +597,24 @@ export default function Inline5Engine({ theme = 'dark' }) {
       rodGroup.add(registerMesh(new THREE.Mesh(rodBeamGeo), 'rod'));
       rodGroup.add(registerMesh(new THREE.Mesh(smallEndGeo), 'rod'));
 
-      // C. Cylinder Liner
+      // C. Cylinder Liner & Sculpted Siamese Cast Water Jacket Barrel
       const linerMesh = registerMesh(new THREE.Mesh(fullLinerGeo), 'liner');
       linerMesh.position.set(0, r + L - 0.32, zPos);
       blockGroup.add(linerMesh);
 
-      // D. 4 Valves per Cylinder (2 Intake on +X, 2 Exhaust on -X)
+      const jacketMesh = registerMesh(new THREE.Mesh(fullJacketGeo), 'block');
+      jacketMesh.position.set(0, r + L - 0.30, zPos);
+      blockGroup.add(jacketMesh);
+
+      const jacketRibMeshes = [];
+      [-0.75, -0.25, 0.25, 0.75].forEach((ribOffY) => {
+        const ribMesh = registerMesh(new THREE.Mesh(fullJacketRibGeo), 'block', false);
+        ribMesh.position.set(0, r + L - 0.30 + ribOffY, zPos);
+        blockGroup.add(ribMesh);
+        jacketRibMeshes.push(ribMesh);
+      });
+
+      // D. 4 Valves per Cylinder (2 Intake on +X, 2 Exhaust on -X) with Helical Springs & Retainers
       const intakeValves = [];
       const exhaustValves = [];
       [-0.24, 0.24].forEach((vz) => {
@@ -561,9 +625,16 @@ export default function Inline5Engine({ theme = 'dark' }) {
         const ivStem = registerMesh(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.78, 12)), 'valveIntake', false);
         ivStem.position.y = 0.36;
         const ivDisc = registerMesh(new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.07, 0.07, 20)), 'valveIntake');
-        ivGroup.add(ivStem, ivDisc);
+        const ivRetainer = registerMesh(new THREE.Mesh(valveRetainerGeo), 'pin', false);
+        ivGroup.add(ivStem, ivDisc, ivRetainer);
         headAndValvesGroup.add(ivGroup);
         intakeValves.push(ivGroup);
+
+        // Static Helical Valve Spring seated on the head deck for Intake
+        const ivSpring = registerMesh(new THREE.Mesh(valveSpringGeo), 'crank', false);
+        ivSpring.position.set(0.32, deckY + 0.38, zPos + vz);
+        ivSpring.rotation.z = -0.26;
+        headAndValvesGroup.add(ivSpring);
 
         // Exhaust Valve (-X)
         const evGroup = new THREE.Group();
@@ -572,21 +643,39 @@ export default function Inline5Engine({ theme = 'dark' }) {
         const evStem = registerMesh(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.78, 12)), 'valveExhaust', false);
         evStem.position.y = 0.36;
         const evDisc = registerMesh(new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.07, 0.07, 20)), 'valveExhaust');
-        evGroup.add(evStem, evDisc);
+        const evRetainer = registerMesh(new THREE.Mesh(valveRetainerGeo), 'pin', false);
+        evGroup.add(evStem, evDisc, evRetainer);
         headAndValvesGroup.add(evGroup);
         exhaustValves.push(evGroup);
+
+        // Static Helical Valve Spring seated on the head deck for Exhaust
+        const evSpring = registerMesh(new THREE.Mesh(valveSpringGeo), 'crank', false);
+        evSpring.position.set(-0.32, deckY + 0.38, zPos + vz);
+        evSpring.rotation.z = 0.26;
+        headAndValvesGroup.add(evSpring);
       });
 
-      // Central Spark Plug & Red-Top TFSI Ignition Coil Pack
-      const plugGeo = new THREE.CylinderGeometry(0.075, 0.075, 0.85, 12);
+      // Central Spark Plug & Sculpted Red-Top TFSI Pencil Ignition Coil Pack
+      const plugGeo = new THREE.CylinderGeometry(0.068, 0.068, 0.72, 14);
       const plugMesh = registerMesh(new THREE.Mesh(plugGeo), 'pin', false);
-      plugMesh.position.set(0, deckY + 0.68, zPos);
+      plugMesh.position.set(0, deckY + 0.48, zPos);
       headAndValvesGroup.add(plugMesh);
 
-      const coilTopGeo = new THREE.BoxGeometry(0.32, 0.22, 0.32);
+      const coilBootMesh = registerMesh(new THREE.Mesh(coilBootGeo), 'flywheel', false);
+      coilBootMesh.position.set(0, deckY + 1.02, zPos);
+      headAndValvesGroup.add(coilBootMesh);
+
+      const coilFlangeMesh = registerMesh(new THREE.Mesh(coilFlangeGeo), 'intakeAlum', false);
+      coilFlangeMesh.position.set(0, deckY + 1.28, zPos);
+      headAndValvesGroup.add(coilFlangeMesh);
+
       const coilTopMesh = registerMesh(new THREE.Mesh(coilTopGeo), 'coilPackRed');
-      coilTopMesh.position.set(0, deckY + 1.25, zPos);
+      coilTopMesh.position.set(0, deckY + 1.38, zPos);
       headAndValvesGroup.add(coilTopMesh);
+
+      const coilSocketMesh = registerMesh(new THREE.Mesh(coilPlugSocketGeo), 'flywheel', false);
+      coilSocketMesh.position.set(0.26, deckY + 1.36, zPos + 0.04);
+      headAndValvesGroup.add(coilSocketMesh);
 
       // E. Volumetric Soft-Glow Chamber Sprites & Ignition Embers for this Cylinder
       const chamberParticles = [];
@@ -657,6 +746,12 @@ export default function Inline5Engine({ theme = 'dark' }) {
         linerMesh,
         fullLinerGeo,
         cutLinerGeo,
+        jacketMesh,
+        fullJacketGeo,
+        cutJacketGeo,
+        jacketRibMeshes,
+        fullJacketRibGeo,
+        cutJacketRibGeo,
         intakeValves,
         exhaustValves,
         chamberParticles,
@@ -666,8 +761,16 @@ export default function Inline5Engine({ theme = 'dark' }) {
       });
     }
 
+    // Continuous TFSI Ignition Wiring Harness Conduit Rail connecting all 5 Coils
+    const harnessLen = boreSpacing * 4 + 0.65;
+    const harnessRailGeo = new THREE.CylinderGeometry(0.055, 0.055, harnessLen, 14);
+    harnessRailGeo.rotateX(Math.PI / 2);
+    const harnessRailMesh = registerMesh(new THREE.Mesh(harnessRailGeo), 'flywheel', false);
+    harnessRailMesh.position.set(0.38, deckY + 1.34, 0);
+    headAndValvesGroup.add(harnessRailMesh);
+
     // ------------------------------------------------------------------------
-    // 5. DUAL OVERHEAD CAMSHAFTS (DOHC) & 20 CAM LOBES
+    // 5. DUAL OVERHEAD CAMSHAFTS (DOHC), VVT PHASERS & SCULPTED 20V CYLINDER HEAD
     // ------------------------------------------------------------------------
     const intakeCamGroup = new THREE.Group();
     intakeCamGroup.position.set(0.52, deckY + 1.05, 0);
@@ -706,54 +809,348 @@ export default function Inline5Engine({ theme = 'dark' }) {
       });
     }
 
-    // Translucent DOHC Cylinder Head & Red-Anodized 5-Cylinder Valve Cover
-    const headCastGeo = new THREE.BoxGeometry(1.85, 1.05, camShaftLen);
-    const headCastMesh = registerMesh(new THREE.Mesh(headCastGeo), 'headCast');
-    headCastMesh.position.set(0, deckY + 0.55, 0);
-    headAndValvesGroup.add(headCastMesh);
+    // Front Variable Valve Timing (VVT) Camshaft Phaser Gears & Timing Chain Loop
+    const vvtZ = camShaftLen * 0.5 + 0.08;
+    const vvtOuterGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.14, 28);
+    vvtOuterGeo.rotateX(Math.PI / 2);
+    const vvtCoreGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.18, 20);
+    vvtCoreGeo.rotateX(Math.PI / 2);
 
-    const vcShape = new THREE.Shape();
-    vcShape.moveTo(-0.88, 0);
-    vcShape.lineTo(-0.78, 0.45);
-    vcShape.lineTo(0.78, 0.45);
-    vcShape.lineTo(0.88, 0);
-    vcShape.closePath();
-    const vcGeo = new THREE.ExtrudeGeometry(vcShape, {
-      depth: camShaftLen - 0.15,
+    [intakeCamGroup, exhaustCamGroup].forEach((cGrp) => {
+      const gearRing = registerMesh(new THREE.Mesh(vvtOuterGeo), 'counterweight');
+      gearRing.position.z = vvtZ;
+      const phaserHub = registerMesh(new THREE.Mesh(vvtCoreGeo), 'turbineWheelGold');
+      phaserHub.position.z = vvtZ + 0.02;
+      cGrp.add(gearRing, phaserHub);
+    });
+
+    // Timing Chain Loop connecting Crankshaft Nose to Dual VVT Cam Sprockets
+    const timingChainCurve = new THREE.CatmullRomCurve3(
+      [
+        new THREE.Vector3(0.52, deckY + 1.38, vvtZ),
+        new THREE.Vector3(-0.52, deckY + 1.38, vvtZ),
+        new THREE.Vector3(-0.82, deckY + 0.95, vvtZ),
+        new THREE.Vector3(-0.42, 0.25, vvtZ),
+        new THREE.Vector3(0.0, -0.36, vvtZ),
+        new THREE.Vector3(0.42, 0.25, vvtZ),
+        new THREE.Vector3(0.82, deckY + 0.95, vvtZ)
+      ],
+      true
+    );
+    const timingChainGeo = new THREE.TubeGeometry(timingChainCurve, 64, 0.048, 8, true);
+    headAndValvesGroup.add(registerMesh(new THREE.Mesh(timingChainGeo), 'flywheel', false));
+
+    // 6 Machined Aluminum Camshaft Bearing Bridges (Cam Towers) arching over both camshafts
+    const camTowerShape = new THREE.Shape();
+    camTowerShape.moveTo(-0.86, 0.36);
+    camTowerShape.lineTo(-0.82, 0.88);
+    camTowerShape.quadraticCurveTo(-0.52, 1.12, -0.22, 0.88);
+    camTowerShape.lineTo(-0.18, 0.62);
+    camTowerShape.lineTo(0.18, 0.62);
+    camTowerShape.lineTo(0.22, 0.88);
+    camTowerShape.quadraticCurveTo(0.52, 1.12, 0.82, 0.88);
+    camTowerShape.lineTo(0.86, 0.36);
+    camTowerShape.lineTo(0.70, 0.36);
+    camTowerShape.absarc(0.52, 0.65, 0.15, 0, Math.PI, false);
+    camTowerShape.lineTo(0.34, 0.36);
+    camTowerShape.lineTo(-0.34, 0.36);
+    camTowerShape.absarc(-0.52, 0.65, 0.15, 0, Math.PI, false);
+    camTowerShape.lineTo(-0.70, 0.36);
+    camTowerShape.closePath();
+
+    const camTowerGeo = new THREE.ExtrudeGeometry(camTowerShape, {
+      depth: 0.22,
       bevelEnabled: true,
       bevelSegments: 2,
       steps: 1,
-      bevelSize: 0.04,
-      bevelThickness: 0.04
+      bevelSize: 0.018,
+      bevelThickness: 0.018
     });
-    vcGeo.translate(0, deckY + 1.02, -(camShaftLen - 0.15) / 2);
-    const valveCoverMesh = registerMesh(new THREE.Mesh(vcGeo), 'valveCoverRed');
-    headAndValvesGroup.add(valveCoverMesh);
+    camTowerGeo.translate(0, deckY + 0.40, -0.11);
+
+    for (let j = 0; j < 6; j++) {
+      const zTower = zStart - boreSpacing * 0.5 + j * boreSpacing;
+      const towerMesh = registerMesh(new THREE.Mesh(camTowerGeo), 'intakeAlum');
+      towerMesh.position.z = zTower;
+      headAndValvesGroup.add(towerMesh);
+    }
+
+    // Sculpted Pent-Roof 20V DOHC Cylinder Head Casting (Organic Multi-Contoured Profile instead of a flat box)
+    const headProfile = new THREE.Shape();
+    headProfile.moveTo(-0.98, 0.0);
+    // Lower deck flange & exhaust side cooling scallop (-X)
+    headProfile.lineTo(-1.06, 0.14);
+    headProfile.lineTo(-0.94, 0.24);
+    // Angled Exhaust Manifold Mounting Flange (-X)
+    headProfile.lineTo(-1.02, 0.56);
+    headProfile.lineTo(-0.88, 0.88);
+    headProfile.quadraticCurveTo(-0.76, 1.02, -0.62, 0.98);
+    // Recessed cam valley floor with spark plug boss gallery
+    headProfile.lineTo(-0.26, 0.68);
+    headProfile.lineTo(0.26, 0.68);
+    // Intake cam gallery & Angled Intake Manifold Mounting Flange (+X)
+    headProfile.lineTo(0.62, 0.98);
+    headProfile.quadraticCurveTo(0.76, 1.02, 0.88, 0.88);
+    headProfile.lineTo(1.02, 0.56);
+    headProfile.lineTo(0.94, 0.24);
+    headProfile.lineTo(1.06, 0.14);
+    headProfile.lineTo(0.98, 0.0);
+    // Pent-roof combustion chamber ceiling arch
+    headProfile.lineTo(0.66, 0.0);
+    headProfile.quadraticCurveTo(0.0, 0.22, -0.66, 0.0);
+    headProfile.closePath();
+
+    const headCastGeo = new THREE.ExtrudeGeometry(headProfile, {
+      depth: camShaftLen - 0.08,
+      bevelEnabled: true,
+      bevelSegments: 3,
+      steps: 1,
+      bevelSize: 0.045,
+      bevelThickness: 0.045
+    });
+    headCastGeo.translate(0, deckY, -(camShaftLen - 0.08) / 2);
+    const headCastMesh = registerMesh(new THREE.Mesh(headCastGeo), 'headCast');
+    headAndValvesGroup.add(headCastMesh);
+
+    // 10 Sculpted Cast Intake (+X) & Exhaust (-X) Port Bosses + 3 Side Cooling Fins along the Head
+    const portBossGeo = new THREE.CylinderGeometry(0.22, 0.25, 0.34, 18);
+    portBossGeo.rotateZ(Math.PI / 2);
+    for (let i = 0; i < 5; i++) {
+      const zCyl = zStart + i * boreSpacing;
+      const inBoss = registerMesh(new THREE.Mesh(portBossGeo), 'headCast', false);
+      inBoss.position.set(0.92, deckY + 0.42, zCyl);
+      inBoss.rotation.z = -0.18;
+      headAndValvesGroup.add(inBoss);
+
+      const exBoss = registerMesh(new THREE.Mesh(portBossGeo), 'headCast', false);
+      exBoss.position.set(-0.92, deckY + 0.42, zCyl);
+      exBoss.rotation.z = 0.18;
+      headAndValvesGroup.add(exBoss);
+    }
+
+    // Sculpted Twin-Hump Red-Anodized Valve Cover (with recessed central TFSI coil valley & cutaway front half)
+    const valveCoverGroup = new THREE.Group();
+    headAndValvesGroup.add(valveCoverGroup);
+
+    const vcShape = new THREE.Shape();
+    vcShape.moveTo(-0.92, 0.0);
+    vcShape.lineTo(-0.88, 0.34);
+    vcShape.quadraticCurveTo(-0.82, 0.52, -0.54, 0.54);
+    vcShape.quadraticCurveTo(-0.28, 0.52, -0.24, 0.26);
+    vcShape.lineTo(0.24, 0.26);
+    vcShape.quadraticCurveTo(0.28, 0.52, 0.54, 0.54);
+    vcShape.quadraticCurveTo(0.82, 0.52, 0.88, 0.34);
+    vcShape.lineTo(0.92, 0.0);
+    vcShape.lineTo(0.78, 0.0);
+    vcShape.lineTo(0.74, 0.30);
+    vcShape.quadraticCurveTo(0.54, 0.40, 0.32, 0.16);
+    vcShape.lineTo(-0.32, 0.16);
+    vcShape.quadraticCurveTo(-0.54, 0.40, -0.74, 0.30);
+    vcShape.lineTo(-0.78, 0.0);
+    vcShape.closePath();
+
+    const vcTotalLen = camShaftLen - 0.12;
+    const vcRearGeo = new THREE.ExtrudeGeometry(vcShape, {
+      depth: vcTotalLen * 0.46,
+      bevelEnabled: true,
+      bevelSegments: 3,
+      steps: 1,
+      bevelSize: 0.035,
+      bevelThickness: 0.035
+    });
+    vcRearGeo.translate(0, deckY + 0.88, -vcTotalLen * 0.5);
+    const valveCoverRearMesh = registerMesh(new THREE.Mesh(vcRearGeo), 'valveCoverRed');
+    valveCoverGroup.add(valveCoverRearMesh);
+
+    const vcFrontGeo = new THREE.ExtrudeGeometry(vcShape, {
+      depth: vcTotalLen * 0.54,
+      bevelEnabled: true,
+      bevelSegments: 3,
+      steps: 1,
+      bevelSize: 0.035,
+      bevelThickness: 0.035
+    });
+    vcFrontGeo.translate(0, deckY + 0.88, -vcTotalLen * 0.04);
+    const valveCoverFrontMesh = registerMesh(new THREE.Mesh(vcFrontGeo), 'valveCoverRed');
+    valveCoverGroup.add(valveCoverFrontMesh);
+
+    // Oil Filler Neck & Cast Cap on the Valve Cover
+    const fillerNeckGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.22, 20);
+    const fillerNeckMesh = registerMesh(new THREE.Mesh(fillerNeckGeo), 'intakeAlum', false);
+    fillerNeckMesh.position.set(-0.54, deckY + 1.48, zStart + 0.35);
+    valveCoverGroup.add(fillerNeckMesh);
+
+    const fillerCapGeo = new THREE.CylinderGeometry(0.20, 0.19, 0.08, 12);
+    const fillerCapMesh = registerMesh(new THREE.Mesh(fillerCapGeo), 'flywheel', false);
+    fillerCapMesh.position.set(-0.54, deckY + 1.61, zStart + 0.35);
+    valveCoverGroup.add(fillerCapMesh);
 
     // ------------------------------------------------------------------------
-    // 6. INLINE-5 ENGINE BLOCK & CRANKCASE SUMP
+    // 6. MULTI-PART SCULPTED INLINE-5 ENGINE BLOCK, BEDPLATE, BULKHEADS & OIL SUMP
     // ------------------------------------------------------------------------
-    const blockLen = camShaftLen + 0.2;
-    const blockProfile = new THREE.Shape();
-    blockProfile.moveTo(-1.12, -1.05);
-    blockProfile.lineTo(-0.95, 1.15);
-    blockProfile.lineTo(-0.88, deckY);
-    blockProfile.lineTo(0.88, deckY);
-    blockProfile.lineTo(0.95, 1.15);
-    blockProfile.lineTo(1.12, -1.05);
-    blockProfile.quadraticCurveTo(0, -1.45, -1.12, -1.05);
+    const blockLen = camShaftLen + 0.18;
 
-    const blockExtrudeGeo = new THREE.ExtrudeGeometry(blockProfile, {
+    // A. Sculpted Top Deck Plate & Lower Block Deck Flange with 12 Head Studs
+    const deckFlangeShape = new THREE.Shape();
+    deckFlangeShape.moveTo(-1.06, -0.14);
+    deckFlangeShape.lineTo(1.06, -0.14);
+    deckFlangeShape.lineTo(1.02, 0.02);
+    deckFlangeShape.lineTo(-1.02, 0.02);
+    deckFlangeShape.closePath();
+    const deckFlangeGeo = new THREE.ExtrudeGeometry(deckFlangeShape, {
+      depth: blockLen,
+      bevelEnabled: true,
+      bevelSegments: 2,
+      steps: 1,
+      bevelSize: 0.025,
+      bevelThickness: 0.025
+    });
+    deckFlangeGeo.translate(0, deckY, -blockLen / 2);
+    blockGroup.add(registerMesh(new THREE.Mesh(deckFlangeGeo), 'block'));
+
+    // 12 Cylinder Head Stud Bolts & Washers flanking the 5 Cylinders
+    const studBoltGeo = new THREE.CylinderGeometry(0.065, 0.065, 0.16, 6);
+    for (let j = 0; j < 6; j++) {
+      const zStud = zStart - boreSpacing * 0.5 + j * boreSpacing;
+      [-0.86, 0.86].forEach((xStud) => {
+        const stud = registerMesh(new THREE.Mesh(studBoltGeo), 'pin', false);
+        stud.position.set(xStud, deckY + 0.06, zStud);
+        blockGroup.add(stud);
+      });
+    }
+
+    // B. 6 Internal Main Bearing Bulkhead Webs & Bolted Bearing Caps (Supports the 6 Crankshaft Journals)
+    const bulkheadShape = new THREE.Shape();
+    bulkheadShape.moveTo(-1.12, -1.10);
+    bulkheadShape.lineTo(-0.98, 1.18);
+    bulkheadShape.lineTo(0.98, 1.18);
+    bulkheadShape.lineTo(1.12, -1.10);
+    bulkheadShape.lineTo(0.56, -1.10);
+    bulkheadShape.absarc(0, 0, 0.36, 0, Math.PI * 2, true);
+    bulkheadShape.lineTo(-0.56, -1.10);
+    bulkheadShape.closePath();
+
+    const bulkheadGeo = new THREE.ExtrudeGeometry(bulkheadShape, {
+      depth: 0.24,
+      bevelEnabled: true,
+      bevelSegments: 2,
+      steps: 1,
+      bevelSize: 0.02,
+      bevelThickness: 0.02
+    });
+    bulkheadGeo.translate(0, 0, -0.12);
+
+    for (let j = 0; j < 6; j++) {
+      const zWeb = zStart - boreSpacing * 0.5 + j * boreSpacing;
+      const webMesh = registerMesh(new THREE.Mesh(bulkheadGeo), 'block');
+      webMesh.position.z = zWeb;
+      blockGroup.add(webMesh);
+    }
+
+    // C. Deep-Skirt Crankcase Bedplate (Split into Back/Left Structural Cradle + Front/Right Cutaway Wall)
+    const backSkirtProfile = new THREE.Shape();
+    backSkirtProfile.moveTo(0.15, -1.22);
+    backSkirtProfile.lineTo(-1.05, -1.22);
+    backSkirtProfile.quadraticCurveTo(-1.26, -0.85, -1.22, -0.15);
+    backSkirtProfile.lineTo(-1.02, 1.25);
+    backSkirtProfile.lineTo(-0.84, 1.25);
+    backSkirtProfile.lineTo(-0.98, -0.15);
+    backSkirtProfile.quadraticCurveTo(-1.02, -0.78, -0.78, -1.02);
+    backSkirtProfile.lineTo(0.15, -1.02);
+    backSkirtProfile.closePath();
+
+    const backSkirtGeo = new THREE.ExtrudeGeometry(backSkirtProfile, {
       depth: blockLen,
       bevelEnabled: true,
       bevelSegments: 3,
       steps: 1,
-      bevelSize: 0.06,
-      bevelThickness: 0.06
+      bevelSize: 0.04,
+      bevelThickness: 0.04
     });
-    blockExtrudeGeo.translate(0, 0, -blockLen / 2);
-    const outerBlockMesh = registerMesh(new THREE.Mesh(blockExtrudeGeo), 'block');
-    blockGroup.add(outerBlockMesh);
+    backSkirtGeo.translate(0, 0, -blockLen / 2);
+    const blockBackSkirtMesh = registerMesh(new THREE.Mesh(backSkirtGeo), 'block');
+    blockGroup.add(blockBackSkirtMesh);
+
+    // External Cast Stiffening Ribs & Engine Mount Boss on the Left (-X) Block Wall
+    const sideRibGeo = new THREE.BoxGeometry(0.12, 0.09, blockLen - 0.25);
+    [-0.55, 0.05, 0.65].forEach((ry) => {
+      const sRib = registerMesh(new THREE.Mesh(sideRibGeo), 'block', false);
+      sRib.position.set(-1.16, ry, 0);
+      blockGroup.add(sRib);
+    });
+
+    // Front/Right (+X) Crankcase Cutaway Wall (Hidden in Cutaway Mode so crank & rods are visible)
+    const frontSkirtProfile = new THREE.Shape();
+    frontSkirtProfile.moveTo(0.15, -1.22);
+    frontSkirtProfile.lineTo(1.05, -1.22);
+    frontSkirtProfile.quadraticCurveTo(1.26, -0.85, 1.22, -0.15);
+    frontSkirtProfile.lineTo(1.02, 1.25);
+    frontSkirtProfile.lineTo(0.84, 1.25);
+    frontSkirtProfile.lineTo(0.98, -0.15);
+    frontSkirtProfile.quadraticCurveTo(1.02, -0.78, 0.78, -1.02);
+    frontSkirtProfile.lineTo(0.15, -1.02);
+    frontSkirtProfile.closePath();
+
+    const frontSkirtGeo = new THREE.ExtrudeGeometry(frontSkirtProfile, {
+      depth: blockLen,
+      bevelEnabled: true,
+      bevelSegments: 3,
+      steps: 1,
+      bevelSize: 0.04,
+      bevelThickness: 0.04
+    });
+    frontSkirtGeo.translate(0, 0, -blockLen / 2);
+    const blockFrontSkirtMesh = registerMesh(new THREE.Mesh(frontSkirtGeo), 'block');
+    blockGroup.add(blockFrontSkirtMesh);
+
+    // D. Finned Cast-Aluminum Wet Oil Sump (Oil Pan) at bottom of Crankcase
+    const oilSumpGroup = new THREE.Group();
+    blockGroup.add(oilSumpGroup);
+
+    const sumpShape = new THREE.Shape();
+    sumpShape.moveTo(-1.08, -1.22);
+    sumpShape.lineTo(1.08, -1.22);
+    sumpShape.lineTo(0.96, -1.68);
+    sumpShape.quadraticCurveTo(0.82, -1.92, 0.42, -1.92);
+    sumpShape.lineTo(-0.42, -1.92);
+    sumpShape.quadraticCurveTo(-0.82, -1.92, -0.96, -1.68);
+    sumpShape.closePath();
+
+    const sumpGeo = new THREE.ExtrudeGeometry(sumpShape, {
+      depth: blockLen - 0.16,
+      bevelEnabled: true,
+      bevelSegments: 3,
+      steps: 1,
+      bevelSize: 0.045,
+      bevelThickness: 0.045
+    });
+    sumpGeo.translate(0, 0, -(blockLen - 0.16) / 2);
+    oilSumpGroup.add(registerMesh(new THREE.Mesh(sumpGeo), 'block'));
+
+    // Longitudinal Cooling Fins under the Cast Aluminum Oil Sump
+    const sumpFinGeo = new THREE.BoxGeometry(0.045, 0.08, blockLen - 0.35);
+    for (let f = -3; f <= 3; f++) {
+      const finMesh = registerMesh(new THREE.Mesh(sumpFinGeo), 'intakeAlum', false);
+      finMesh.position.set(f * 0.22, -1.97, 0);
+      oilSumpGroup.add(finMesh);
+    }
+
+    // E. Rear Transmission Bellhousing Flange framing the Dual-Mass Flywheel
+    const bellPoints = [
+      new THREE.Vector2(0.42, 0.0),
+      new THREE.Vector2(1.18, 0.04),
+      new THREE.Vector2(1.68, 0.22),
+      new THREE.Vector2(1.76, 0.44),
+      new THREE.Vector2(1.64, 0.44),
+      new THREE.Vector2(1.56, 0.24),
+      new THREE.Vector2(1.06, 0.10),
+      new THREE.Vector2(0.42, 0.08)
+    ];
+    const bellGeo = new THREE.LatheGeometry(bellPoints, 36);
+    bellGeo.rotateX(Math.PI / 2);
+    const bellMesh = registerMesh(new THREE.Mesh(bellGeo), 'block');
+    bellMesh.position.set(0, 0, zStart - 0.88);
+    blockGroup.add(bellMesh);
 
     // ------------------------------------------------------------------------
     // 7. 5-INTO-1 TUBULAR EXHAUST MANIFOLD, LARGE TURBOCHARGER & BOOST PLENUM
@@ -846,13 +1243,22 @@ export default function Inline5Engine({ theme = 'dark' }) {
       new THREE.Vector3(turboPos.x, turboPos.y + 0.62, turboPos.z + 0.38),
       new THREE.Vector3(turboPos.x + 0.35, deckY + 1.55, zStart + boreSpacing * 4 + 0.95),
       new THREE.Vector3(1.65, deckY + 1.35, zStart + boreSpacing * 4 + 0.95),
-      new THREE.Vector3(1.85, deckY + 0.55, zStart + boreSpacing * 3.2)
+      new THREE.Vector3(1.85, deckY + 0.55, zStart + boreSpacing * 3.35)
     ]);
     const chargePipeGeo = new THREE.TubeGeometry(chargePipeCurve, 32, 0.22, 18, false);
     turboSystemGroup.add(registerMesh(new THREE.Mesh(chargePipeGeo), 'chargePipeBlue'));
 
-    // Cast Aluminum Intake Plenum (+X side) & 5 Individual Intake Runners
-    const plenumGeo = new THREE.CylinderGeometry(0.36, 0.36, camShaftLen - 0.4, 24);
+    // Tapered Cast-Aluminum Surge-Tank Intake Plenum (+X side) & 5 Individual Cast Intake Runners
+    const plenumLen = camShaftLen - 0.25;
+    const plenumLathePts = [
+      new THREE.Vector2(0.0, -plenumLen * 0.5),
+      new THREE.Vector2(0.24, -plenumLen * 0.48),
+      new THREE.Vector2(0.32, -plenumLen * 0.20),
+      new THREE.Vector2(0.42, plenumLen * 0.15),
+      new THREE.Vector2(0.46, plenumLen * 0.44),
+      new THREE.Vector2(0.26, plenumLen * 0.50)
+    ];
+    const plenumGeo = new THREE.LatheGeometry(plenumLathePts, 28);
     plenumGeo.rotateX(Math.PI / 2);
     const plenumMesh = registerMesh(new THREE.Mesh(plenumGeo), 'intakeAlum');
     plenumMesh.position.set(1.85, deckY + 0.48, 0);
@@ -863,11 +1269,11 @@ export default function Inline5Engine({ theme = 'dark' }) {
       const zCyl = zStart + i * boreSpacing;
       const iCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(1.85, deckY + 0.48, zCyl),
-        new THREE.Vector3(1.35, deckY + 0.52, zCyl),
-        new THREE.Vector3(0.82, deckY + 0.35, zCyl)
+        new THREE.Vector3(1.38, deckY + 0.58, zCyl),
+        new THREE.Vector3(0.88, deckY + 0.42, zCyl)
       ]);
       intakeRunnerCurves.push(iCurve);
-      const iRunGeo = new THREE.TubeGeometry(iCurve, 14, 0.16, 14, false);
+      const iRunGeo = new THREE.TubeGeometry(iCurve, 16, 0.17, 14, false);
       turboSystemGroup.add(registerMesh(new THREE.Mesh(iRunGeo), 'intakeAlum'));
     }
 
@@ -954,20 +1360,27 @@ export default function Inline5Engine({ theme = 'dark' }) {
       });
 
       blockGroup.visible = sBlock;
-      outerBlockMesh.visible = sBlock && (!cut || exp > 0.08);
+      blockFrontSkirtMesh.visible = sBlock && (!cut || exp > 0.08);
       headAndValvesGroup.visible = sHead;
-      valveCoverMesh.visible = sHead && (!cut || exp > 0.08);
+      valveCoverGroup.visible = sHead;
+      valveCoverFrontMesh.visible = sHead && (!cut || exp > 0.08);
       turboSystemGroup.visible = sTurbo;
       gasGroup.visible = sGas;
 
       // Exploded View Separation
       headAndValvesGroup.position.y = exp * 1.45;
-      valveCoverMesh.position.y = exp * 0.65;
+      valveCoverGroup.position.y = exp * 0.65;
+      oilSumpGroup.position.y = -exp * 0.75;
+      blockFrontSkirtMesh.position.x = exp * 0.85;
       turboSystemGroup.position.x = -exp * 1.25;
       crankshaftGroup.position.y = -exp * 0.85;
 
       cylindersData.forEach((cyl) => {
         cyl.linerMesh.geometry = cut ? cyl.cutLinerGeo : cyl.fullLinerGeo;
+        cyl.jacketMesh.geometry = cut ? cyl.cutJacketGeo : cyl.fullJacketGeo;
+        cyl.jacketRibMeshes.forEach((rib) => {
+          rib.geometry = cut ? cyl.cutJacketRibGeo : cyl.fullJacketRibGeo;
+        });
       });
     };
 
