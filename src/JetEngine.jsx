@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { 
   Play, Pause, RotateCcw, Eye, EyeOff, 
   Layers, Box, Grid, Cpu, Flame, 
-  Sliders, Maximize2, Activity, Gauge, Zap, Info, Wind, Scissors, Compass
+  Sliders, Maximize2, Activity, Gauge, Zap, Info, Wind, Scissors, Compass, Sparkles
 } from 'lucide-react';
 
 const JET_SPECS = {
