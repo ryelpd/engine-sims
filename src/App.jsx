@@ -3,10 +3,11 @@ import V8Engine from './V8Engine.jsx';
 import JetEngine from './JetEngine.jsx';
 import FourStrokeEngine from './FourStrokeEngine.jsx';
 import DieselEngine from './DieselEngine.jsx';
-import { Cpu, Wind, Flame, Droplets, Sun, Moon } from 'lucide-react';
+import TwoStrokeEngine from './TwoStrokeEngine.jsx';
+import { Cpu, Wind, Flame, Droplets, Repeat, Sun, Moon } from 'lucide-react';
 
 export default function App() {
-  const [activeEngine, setActiveEngine] = useState('diesel'); // 'diesel' | 'four_stroke' | 'v8' | 'jet'
+  const [activeEngine, setActiveEngine] = useState('two_stroke'); // 'two_stroke' | 'diesel' | 'four_stroke' | 'v8' | 'jet'
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('engine_theme') || 'dark';
   });
@@ -29,7 +30,9 @@ export default function App() {
       }`}>
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-[0_4px_12px_rgba(251,101,20,0.35)] shrink-0">
-            {activeEngine === 'diesel' ? (
+            {activeEngine === 'two_stroke' ? (
+              <Repeat className="w-5 h-5 text-white stroke-[2.2]" />
+            ) : activeEngine === 'diesel' ? (
               <Droplets className="w-5 h-5 text-white stroke-[2.2]" />
             ) : activeEngine === 'four_stroke' ? (
               <Flame className="w-5 h-5 text-white stroke-[2.2]" />
@@ -58,6 +61,20 @@ export default function App() {
         <div className={`flex items-center p-1 rounded-xl border gap-1 overflow-x-auto ${
           isDark ? 'bg-[#161f30] border-gray-800' : 'bg-gray-100 border-gray-200'
         }`}>
+          <button
+            onClick={() => setActiveEngine('two_stroke')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
+              activeEngine === 'two_stroke'
+                ? 'bg-orange-500 text-white shadow-[0_2px_8px_rgba(251,101,20,0.35)]'
+                : isDark
+                  ? 'text-gray-400 hover:text-white'
+                  : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Repeat className="w-3.5 h-3.5" />
+            <span>Mesin 2-Tak</span>
+          </button>
+
           <button
             onClick={() => setActiveEngine('diesel')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
@@ -148,7 +165,9 @@ export default function App() {
           aria-hidden="true" 
         />
 
-        {activeEngine === 'diesel' ? (
+        {activeEngine === 'two_stroke' ? (
+          <TwoStrokeEngine theme={theme} />
+        ) : activeEngine === 'diesel' ? (
           <DieselEngine theme={theme} />
         ) : activeEngine === 'four_stroke' ? (
           <FourStrokeEngine theme={theme} />
