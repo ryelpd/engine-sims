@@ -51,9 +51,38 @@ const FINAL_DRIVE_RATIO = 38 / 11; // 3.4545
 const SIDE_TEETH = 14;
 const SPIDER_TEETH = 10;
 
+const SCENARIO_INFO = {
+  straight: {
+    title: 'Jalan Lurus (Roda Kiri = Roda Kanan)',
+    openDesc:
+      'Kedua ban mendapat traksi aspal yang sama. Roda Kiri (100%) dan Roda Kanan (100%) berputar dengan kecepatan identik. Roda gigi Spider (oranye) DIAM pada porosnya dan hanya ikut mengorbit bersama rumah gardan.',
+    lsdDesc:
+      'Pada jalan lurus, kopling LSD menjaga kedua poros roda kiri dan kanan terkunci sinkron pada kecepatan 100% tanpa selisih putaran.'
+  },
+  turn_left: {
+    title: 'Belok Kiri Tajam (Roda Kanan Luar > Roda Kiri Dalam)',
+    openDesc:
+      'Saat mobil belok kiri, roda kiri (sisi dalam tikungan) menempuh lintasan pendek sehingga melambat (35%), sedangkan roda kanan (sisi luar) berputar cepat (165%). Perhatikan roda gigi Spider oranye di tengah sekarang BERPUTAR aktif pada porosnya!',
+    lsdDesc:
+      'Saat menikung dengan Clutch-Pack LSD, kampas kopling menahan sebagian selisih putaran agar traksi tetap terjaga di kedua roda sembari tetap mengizinkan roda kanan luar berputar lebih cepat.'
+  },
+  turn_right: {
+    title: 'Belok Kanan Tajam (Roda Kiri Luar > Roda Kanan Dalam)',
+    openDesc:
+      'Saat mobil belok kanan, roda kiri (sisi luar tikungan) berputar jauh lebih cepat (165%) dibandingkan roda kanan di sisi dalam (35%). Roda gigi Spider oranye berputar ke arah sebaliknya untuk menyalurkan selisih kecepatan.',
+    lsdDesc:
+      'Saat belok kanan dengan LSD aktif, kopling gesek membatasi selip berlebih sambil membiarkan roda kiri luar menempuh busur tikungan yang lebih panjang.'
+  },
+  slip_right: {
+    title: 'Roda Kanan Selip di Atas Es! (Uji Open Diff vs LSD)',
+    openDesc:
+      'KELEMAHAN OPEN DIFF: Roda kanan menginjak es licin (traksi 0%). Seluruh putaran bocor ke roda kanan yang berputar liar 200% (2x lipat!), sedangkan Roda Kiri di aspal kering BERHENTI TOTAL (0 RPM) sehingga mobil tidak bisa maju!',
+    lsdDesc:
+      'SOLUSI CLUTCH-PACK LSD: Begitu roda kanan selip di es, paket kopling LSD langsung MENGUNCI side gear ke rumah gardan! Roda kiri di aspal kering tetap berputar kuat (85% RPM, 890 Nm) menarik mobil keluar dari es!'
+  }
+};
+
 // Helper to build a 3D Tapered Conical Bevel Gear Geometry
-// Generated in the X-Y plane, extruded along Z from -faceWidth/2 to +faceWidth/2,
-// with the front face (+Z) tapered by taperFactor toward the bevel cone apex!
 function createBevelGearGeo({
   pitchRadius,
   teethCount,
@@ -102,17 +131,14 @@ function createBevelGearGeo({
   });
   geo.translate(0, 0, -faceWidth * 0.5);
 
-  // Apply conical bevel taper + optional spiral-bevel twist along Z
   const pos = geo.attributes.position;
   for (let k = 0; k < pos.count; k++) {
     const vx = pos.getX(k);
     const vy = pos.getY(k);
     const vz = pos.getZ(k);
-    // u goes from 0 at back face (-faceWidth/2) to 1 at front face (+faceWidth/2)
     const u = Math.max(0, Math.min(1, (vz + faceWidth * 0.5) / faceWidth));
     const r = Math.sqrt(vx * vx + vy * vy);
 
-    // Keep inner bore radius constant while tapering outer teeth along the pitch cone
     if (r > boreRadius + 0.03) {
       const scale = 1 - u * (1 - taperFactor);
       const twist = u * spiralTwist;
@@ -132,17 +158,17 @@ function createBevelGearGeo({
 export default function DifferentialSim({ theme = 'dark' }) {
   const mountRef = useRef(null);
 
-  // Mechanical State & Driving Scenarios
+  // Default to Open Differential so cornering & ice-slip differences are 100% dramatic right away!
   const [isPlaying, setIsPlaying] = useState(true);
   const [driveshaftRpm, setDriveshaftRpm] = useState(1800);
   const [diffType, setDiffType] = useState('open'); // 'open' | 'lsd'
   const [drivingScenario, setDrivingScenario] = useState('straight'); // 'straight' | 'turn_left' | 'turn_right' | 'slip_right'
-  const [steeringBias, setSteeringBias] = useState(0); // -1.0 (Full Left Turn / Left Slow) to +1.0 (Full Right Turn / Right Slow)
-  const [lsdLockPct, setLsdLockPct] = useState(65); // Clutch-pack locking percentage in LSD mode
+  const [steeringBias, setSteeringBias] = useState(0); // -1.0 (Right Wheel 200%, Left 0%) to +1.0 (Left Wheel 200%, Right 0%)
+  const [lsdLockPct, setLsdLockPct] = useState(75);
 
   // Visual / Viewport Controls
   const [renderMode, setRenderMode] = useState('realistic');
-  const [casingOpacity, setCasingOpacity] = useState(0.22);
+  const [casingOpacity, setCasingOpacity] = useState(0.20);
   const [cutawayMode, setCutawayMode] = useState(true);
   const [exploded, setExploded] = useState(0);
   const [autoRotateCam, setAutoRotateCam] = useState(false);
@@ -150,7 +176,6 @@ export default function DifferentialSim({ theme = 'dark' }) {
   // Component Visibility Toggles
   const [showCasing, setShowCasing] = useState(true);
   const [showCarrierCage, setShowCarrierCage] = useState(true);
-  const [showLsdClutches, setShowLsdClutches] = useState(true);
   const [showWheelHubs, setShowWheelHubs] = useState(true);
   const [showTorqueFlow, setShowTorqueFlow] = useState(true);
 
@@ -159,6 +184,8 @@ export default function DifferentialSim({ theme = 'dark' }) {
     carrierRpm: 521,
     leftWheelRpm: 521,
     rightWheelRpm: 521,
+    leftPct: 100,
+    rightPct: 100,
     spiderSelfRpm: 0,
     leftTorqueNm: 540,
     rightTorqueNm: 540
@@ -178,7 +205,6 @@ export default function DifferentialSim({ theme = 'dark' }) {
     autoRotateCam,
     showCasing,
     showCarrierCage,
-    showLsdClutches,
     showWheelHubs,
     showTorqueFlow,
     theme
@@ -199,7 +225,6 @@ export default function DifferentialSim({ theme = 'dark' }) {
       autoRotateCam,
       showCasing,
       showCarrierCage,
-      showLsdClutches,
       showWheelHubs,
       showTorqueFlow,
       theme
@@ -218,7 +243,6 @@ export default function DifferentialSim({ theme = 'dark' }) {
     autoRotateCam,
     showCasing,
     showCarrierCage,
-    showLsdClutches,
     showWheelHubs,
     showTorqueFlow,
     theme
@@ -229,11 +253,14 @@ export default function DifferentialSim({ theme = 'dark' }) {
     if (scenarioId === 'straight') {
       setSteeringBias(0);
     } else if (scenarioId === 'turn_left') {
-      setSteeringBias(-0.42);
+      // Strong 65% bias: Left Inner Wheel = 35% speed, Right Outer Wheel = 165% speed (nearly 5:1 ratio!)
+      setSteeringBias(-0.65);
     } else if (scenarioId === 'turn_right') {
-      setSteeringBias(0.42);
+      // Strong 65% bias: Left Outer Wheel = 165% speed, Right Inner Wheel = 35% speed!
+      setSteeringBias(0.65);
     } else if (scenarioId === 'slip_right') {
-      setSteeringBias(-1.0); // Right wheel loses traction and spins fast unless LSD locks!
+      // 100% slip bias: In Open Diff, Left Wheel = 0 RPM (DEAD STOP), Right Wheel = 200% RPM!
+      setSteeringBias(-1.0);
     }
   };
 
@@ -249,7 +276,7 @@ export default function DifferentialSim({ theme = 'dark' }) {
     const scene = new THREE.Scene();
     const isDarkTheme = simParams.current.theme === 'dark';
     scene.background = new THREE.Color(isDarkTheme ? 0x0b101b : 0xf1f5f9);
-    scene.fog = new THREE.FogExp2(isDarkTheme ? 0x0b101b : 0xf1f5f9, 0.015);
+    scene.fog = new THREE.FogExp2(isDarkTheme ? 0x0b101b : 0xf1f5f9, 0.014);
 
     const camera = new THREE.PerspectiveCamera(
       40,
@@ -257,7 +284,7 @@ export default function DifferentialSim({ theme = 'dark' }) {
       0.1,
       150
     );
-    camera.position.set(4.2, 4.2, 7.8);
+    camera.position.set(0.0, 4.8, 9.8);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -273,23 +300,23 @@ export default function DifferentialSim({ theme = 'dark' }) {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
-    controls.target.set(0, 0, -0.2);
+    controls.target.set(0, -0.1, 0);
     controls.minDistance = 4.0;
     controls.maxDistance = 24.0;
 
     cameraPresetRef.current = (viewType) => {
       if (viewType === 'iso') {
-        camera.position.set(4.2, 4.2, 7.8);
-        controls.target.set(0, 0, -0.2);
+        camera.position.set(0.0, 4.8, 9.8);
+        controls.target.set(0, -0.1, 0);
       } else if (viewType === 'front') {
-        camera.position.set(0, 0.6, 8.8);
+        camera.position.set(0, 0.8, 9.5);
         controls.target.set(0, 0, 0);
       } else if (viewType === 'top') {
-        camera.position.set(0.01, 9.6, -0.2);
-        controls.target.set(0, 0, -0.2);
+        camera.position.set(0.01, 10.5, 0.01);
+        controls.target.set(0, 0, 0);
       } else if (viewType === 'pinion') {
-        camera.position.set(-4.8, 2.2, -5.8);
-        controls.target.set(0, 0, -0.4);
+        camera.position.set(-4.8, 2.5, -6.2);
+        controls.target.set(0, 0, -0.2);
       }
       controls.update();
     };
@@ -322,7 +349,7 @@ export default function DifferentialSim({ theme = 'dark' }) {
       isDarkTheme ? 0x1e293b : 0xcbd5e1,
       isDarkTheme ? 0x131c2e : 0xe2e8f0
     );
-    gridHelper.position.y = -2.45;
+    gridHelper.position.y = -2.15;
     scene.add(gridHelper);
 
     // ------------------------------------------------------------------------
@@ -344,7 +371,7 @@ export default function DifferentialSim({ theme = 'dark' }) {
         metalness: 0.86,
         roughness: 0.20,
         emissive: 0xea580c,
-        emissiveIntensity: 0.22
+        emissiveIntensity: 0.35
       }),
       leftSideGear: new THREE.MeshStandardMaterial({
         color: 0x10b981,
@@ -378,6 +405,18 @@ export default function DifferentialSim({ theme = 'dark' }) {
         metalness: 0.90,
         roughness: 0.22
       }),
+      tireRubber: new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        metalness: 0.15,
+        roughness: 0.78
+      }),
+      wheelMarkerOrange: new THREE.MeshStandardMaterial({
+        color: 0xf97316,
+        metalness: 0.5,
+        roughness: 0.25,
+        emissive: 0xf97316,
+        emissiveIntensity: 0.45
+      }),
       brakeCaliperRed: new THREE.MeshStandardMaterial({
         color: 0xef4444,
         metalness: 0.65,
@@ -388,7 +427,7 @@ export default function DifferentialSim({ theme = 'dark' }) {
         metalness: 0.32,
         roughness: 0.24,
         transparent: true,
-        opacity: 0.22,
+        opacity: 0.20,
         depthWrite: false,
         side: THREE.DoubleSide
       })
@@ -400,7 +439,7 @@ export default function DifferentialSim({ theme = 'dark' }) {
       metalness: 0.1,
       roughness: 0.6,
       transparent: true,
-      opacity: 0.22,
+      opacity: 0.20,
       depthWrite: false,
       side: THREE.DoubleSide
     });
@@ -437,7 +476,6 @@ export default function DifferentialSim({ theme = 'dark' }) {
       return mesh;
     };
 
-    // Soft-Glow Particle Texture for Active Torque Path
     const createSoftGlowTexture = () => {
       const canvas = document.createElement('canvas');
       canvas.width = 128;
@@ -462,12 +500,10 @@ export default function DifferentialSim({ theme = 'dark' }) {
     // ------------------------------------------------------------------------
     // 3. INPUT DRIVESHAFT & HYPOID DRIVE PINION GEAR (AXIS ALONG Z)
     // ------------------------------------------------------------------------
-    // Meshes with Crown Ring Gear (x = -1.12) at z = -1.52
     const pinionGroup = new THREE.Group();
     pinionGroup.position.set(-0.92, 0, -1.62);
     diffRoot.add(pinionGroup);
 
-    // Tapered Conical Drive Pinion Head (11 Teeth, facing +Z towards the Crown Gear center)
     const pinionHeadGeo = createBevelGearGeo({
       pitchRadius: 0.52,
       teethCount: 11,
@@ -478,7 +514,6 @@ export default function DifferentialSim({ theme = 'dark' }) {
     });
     pinionGroup.add(registerMesh(new THREE.Mesh(pinionHeadGeo), 'pinionGear'));
 
-    // Input Pinion Shaft & Driveshaft Companion Flange extending toward -Z
     const pinionShaftGeo = new THREE.CylinderGeometry(0.22, 0.22, 2.25, 24);
     pinionShaftGeo.rotateX(Math.PI / 2);
     const pinionShaftMesh = registerMesh(new THREE.Mesh(pinionShaftGeo), 'pinionGear');
@@ -494,12 +529,9 @@ export default function DifferentialSim({ theme = 'dark' }) {
     // ------------------------------------------------------------------------
     // 4. ROTATING DIFFERENTIAL CARRIER CAGE, CROWN RING GEAR & SPIDER GEARS
     // ------------------------------------------------------------------------
-    // Rotates around X-axis!
     const carrierGroup = new THREE.Group();
     diffRoot.add(carrierGroup);
 
-    // A. Large Crown Ring Gear (38 Teeth, pitchRadius = 1.66) at x = -1.12
-    // Its bevel teeth face +X (toward x = 0) so createBevelGearGeo (+Z taper) is rotated +PI/2 around Y!
     const crownGearGeo = createBevelGearGeo({
       pitchRadius: 1.66,
       teethCount: 38,
@@ -513,18 +545,15 @@ export default function DifferentialSim({ theme = 'dark' }) {
     crownGearMesh.position.x = -1.12;
     carrierGroup.add(crownGearMesh);
 
-    // Solid Crown Gear Backing Web & 10 Perimeter Ring Bolts
     const crownWebGeo = new THREE.CylinderGeometry(1.56, 1.56, 0.14, 36);
     crownWebGeo.rotateZ(Math.PI / 2);
     const crownWebMesh = registerMesh(new THREE.Mesh(crownWebGeo), 'carrierCast');
     crownWebMesh.position.x = -1.34;
     carrierGroup.add(crownWebMesh);
 
-    // B. Open-Window Differential Carrier Cage (Toggled by showCarrierCage)
     const carrierCageSubGroup = new THREE.Group();
     carrierGroup.add(carrierCageSubGroup);
 
-    // Left & Right Carrier Bearing Hubs at x = -1.18 and x = +1.18
     const hubRingGeo = new THREE.CylinderGeometry(0.98, 0.98, 0.18, 32);
     hubRingGeo.rotateZ(Math.PI / 2);
     const leftCarrierFace = registerMesh(new THREE.Mesh(hubRingGeo), 'carrierCast');
@@ -533,7 +562,6 @@ export default function DifferentialSim({ theme = 'dark' }) {
     rightCarrierFace.position.x = 1.02;
     carrierCageSubGroup.add(leftCarrierFace, rightCarrierFace);
 
-    // 2 Heavy Structural Carrier Bridges (at Z = -0.86 and Z = +0.86) leaving Y-windows open to view Spider Gears!
     const bridgeGeo = new THREE.BoxGeometry(2.04, 0.36, 0.24);
     [-0.86, 0.86].forEach((bz) => {
       const bMesh = registerMesh(new THREE.Mesh(bridgeGeo), 'carrierCast');
@@ -541,13 +569,12 @@ export default function DifferentialSim({ theme = 'dark' }) {
       carrierCageSubGroup.add(bMesh);
     });
 
-    // C. Central Spider Cross-Pin Shaft (Along Carrier Local Y-Axis!)
+    // Central Spider Cross-Pin Shaft (Along Carrier Local Y-Axis)
     const crossPinGeo = new THREE.CylinderGeometry(0.14, 0.14, 1.96, 20);
     const crossPinMesh = registerMesh(new THREE.Mesh(crossPinGeo), 'axleSteel');
     carrierGroup.add(crossPinMesh);
 
-    // D. Top & Bottom Spider Pinion Bevel Gears (10 Teeth, at y = +0.62 and y = -0.62)
-    // They rotate around their local Y-axis when Left and Right wheels turn at different speeds!
+    // Top & Bottom Spider Pinion Bevel Gears (10 Teeth) + High-Contrast Marker Bars
     const spiderBevelGeo = createBevelGearGeo({
       pitchRadius: 0.46,
       teethCount: SPIDER_TEETH,
@@ -557,44 +584,49 @@ export default function DifferentialSim({ theme = 'dark' }) {
       spiralTwist: 0
     });
 
-    // Top Spider Gear (at y = +0.62, tapered face pointing -Y toward center)
     const topSpiderGroup = new THREE.Group();
     topSpiderGroup.position.set(0, 0.62, 0);
     carrierGroup.add(topSpiderGroup);
 
     const topSpiderGeo = spiderBevelGeo.clone();
-    topSpiderGeo.rotateX(Math.PI / 2); // +Z taper now points toward -Y (center!)
+    topSpiderGeo.rotateX(Math.PI / 2);
     topSpiderGroup.add(registerMesh(new THREE.Mesh(topSpiderGeo), 'spiderGear'));
 
-    // Bottom Spider Gear (at y = -0.62, tapered face pointing +Y toward center)
     const botSpiderGroup = new THREE.Group();
     botSpiderGroup.position.set(0, -0.62, 0);
     carrierGroup.add(botSpiderGroup);
 
     const botSpiderGeo = spiderBevelGeo.clone();
-    botSpiderGeo.rotateX(-Math.PI / 2); // +Z taper now points toward +Y (center!)
+    botSpiderGeo.rotateX(-Math.PI / 2);
     botSpiderGroup.add(registerMesh(new THREE.Mesh(botSpiderGeo), 'spiderGear'));
 
-    // E. Multi-Plate LSD Friction Clutch Packs & Pressure Rings (Inside Carrier Cage at x = ±0.82)
-    const lsdClutchGroup = new THREE.Group();
-    carrierGroup.add(lsdClutchGroup);
+    // Multi-Plate LSD Friction Clutch Packs (Left & Right) that physically clamp inward when LSD is active!
+    const leftLsdClutchGroup = new THREE.Group();
+    const rightLsdClutchGroup = new THREE.Group();
+    carrierGroup.add(leftLsdClutchGroup, rightLsdClutchGroup);
 
-    const clutchPlateGeo = new THREE.CylinderGeometry(0.76, 0.76, 0.032, 28);
+    const clutchPlateGeo = new THREE.CylinderGeometry(0.78, 0.78, 0.036, 28);
     clutchPlateGeo.rotateZ(Math.PI / 2);
-    [-1, 1].forEach((sideSign) => {
-      for (let p = 0; p < 4; p++) {
-        const cPlate = registerMesh(
-          new THREE.Mesh(clutchPlateGeo),
-          p % 2 === 0 ? 'lsdClutchFriction' : 'axleSteel',
-          false
-        );
-        cPlate.position.x = sideSign * (0.74 + p * 0.048);
-        lsdClutchGroup.add(cPlate);
-      }
-    });
+    for (let p = 0; p < 4; p++) {
+      const lPlate = registerMesh(
+        new THREE.Mesh(clutchPlateGeo),
+        p % 2 === 0 ? 'lsdClutchFriction' : 'axleSteel',
+        false
+      );
+      lPlate.position.x = -(0.72 + p * 0.05);
+      leftLsdClutchGroup.add(lPlate);
+
+      const rPlate = registerMesh(
+        new THREE.Mesh(clutchPlateGeo),
+        p % 2 === 0 ? 'lsdClutchFriction' : 'axleSteel',
+        false
+      );
+      rPlate.position.x = 0.72 + p * 0.05;
+      rightLsdClutchGroup.add(rPlate);
+    }
 
     // ------------------------------------------------------------------------
-    // 5. LEFT & RIGHT SIDE BEVEL GEARS, HALF-SHAFT AXLES & WHEEL BRAKE HUBS
+    // 5. LEFT & RIGHT AXLES, TIRES WITH TREAD BLOCKS & STEERING KNUCKLES
     // ------------------------------------------------------------------------
     const sideBevelGeo = createBevelGearGeo({
       pitchRadius: 0.64,
@@ -605,96 +637,166 @@ export default function DifferentialSim({ theme = 'dark' }) {
       spiralTwist: 0
     });
 
-    // Helper to build a ventilated brake disc + 5-spoke hub at the outer end of each axle
-    const buildWheelBrakeHub = (sideSign) => {
-      const hubGrp = new THREE.Group();
-      const xHub = sideSign * 3.55;
+    // Build a complete Wheel + Treaded Tire + High-Contrast Orange Racing Marker Spoke
+    // Wrapped inside a Knuckle Pivot Group so the wheels physically steer Left/Right when turning!
+    const buildWheelAndTireAssembly = (sideSign, matKey) => {
+      const knucklePivot = new THREE.Group();
+      knucklePivot.position.set(sideSign * 3.65, 0, 0);
 
-      // Ventilated Cross-Drilled Brake Disc Rotor
-      const rotorGeo = new THREE.CylinderGeometry(1.38, 1.38, 0.16, 36);
+      const wheelSpinGroup = new THREE.Group();
+      knucklePivot.add(wheelSpinGroup);
+
+      // 1. Ventilated Brake Disc Rotor
+      const rotorGeo = new THREE.CylinderGeometry(1.08, 1.08, 0.14, 32);
       rotorGeo.rotateZ(Math.PI / 2);
       const rotorMesh = registerMesh(new THREE.Mesh(rotorGeo), 'brakeRotor');
-      rotorMesh.position.x = xHub;
-      hubGrp.add(rotorMesh);
+      wheelSpinGroup.add(rotorMesh);
 
-      // 5 Radial Alloy Hub Spokes so wheel RPM is crystal-clear visually
-      const spokeGeo = new THREE.BoxGeometry(0.10, 1.18, 0.18);
+      // 2. Sculpted 3D Rubber Tire Torus + 16 High-Contrast Tread Blocks around circumference
+      const tireTorusGeo = new THREE.TorusGeometry(1.42, 0.36, 18, 36);
+      tireTorusGeo.rotateY(Math.PI / 2);
+      const tireMesh = registerMesh(new THREE.Mesh(tireTorusGeo), 'tireRubber');
+      tireMesh.position.x = sideSign * 0.16;
+      wheelSpinGroup.add(tireMesh);
+
+      const treadBlockGeo = new THREE.BoxGeometry(0.48, 0.14, 0.20);
+      for (let t = 0; t < 16; t++) {
+        const ta = (t / 16) * Math.PI * 2;
+        const isMarkerTread = t === 0 || t === 8;
+        const tread = registerMesh(
+          new THREE.Mesh(treadBlockGeo),
+          isMarkerTread ? 'wheelMarkerOrange' : 'carrierCast',
+          false
+        );
+        tread.position.set(
+          sideSign * 0.16,
+          Math.cos(ta) * 1.74,
+          Math.sin(ta) * 1.74
+        );
+        tread.rotation.x = -ta;
+        wheelSpinGroup.add(tread);
+      }
+
+      // 3. 5-Spoke Alloy Rim with 1 Bright Orange Racing Indicator Spoke so RPM is unmistakable!
+      const spokeGeo = new THREE.BoxGeometry(0.12, 1.24, 0.20);
       for (let s = 0; s < 5; s++) {
         const sa = (s / 5) * Math.PI * 2;
-        const spoke = registerMesh(new THREE.Mesh(spokeGeo), 'carrierCast', false);
+        const spoke = registerMesh(
+          new THREE.Mesh(spokeGeo),
+          s === 0 ? 'wheelMarkerOrange' : matKey,
+          false
+        );
         spoke.position.set(
-          xHub + sideSign * 0.12,
+          sideSign * 0.28,
           Math.cos(sa) * 0.62,
           Math.sin(sa) * 0.62
         );
         spoke.rotation.x = -sa;
-        hubGrp.add(spoke);
+        wheelSpinGroup.add(spoke);
       }
 
-      // Outer Rim Ring
-      const rimRingGeo = new THREE.TorusGeometry(1.28, 0.09, 14, 36);
-      rimRingGeo.rotateY(Math.PI / 2);
-      const rimRingMesh = registerMesh(new THREE.Mesh(rimRingGeo), 'axleSteel', false);
-      rimRingMesh.position.x = xHub + sideSign * 0.14;
-      hubGrp.add(rimRingMesh);
+      // Stationary Red 4-Piston Brake Caliper attached to the steering knuckle
+      const caliperGeo = new THREE.BoxGeometry(0.36, 0.62, 0.38);
+      const calMesh = registerMesh(new THREE.Mesh(caliperGeo), 'brakeCaliperRed');
+      calMesh.position.set(0, 0.85, 0.72);
+      calMesh.rotation.x = -0.65;
+      knucklePivot.add(calMesh);
 
-      return hubGrp;
+      return { knucklePivot, wheelSpinGroup };
     };
 
-    // A. LEFT AXLE & LEFT SIDE BEVEL GEAR (x < 0, rotates around X-axis at leftWheelOmega)
-    const leftAxleGroup = new THREE.Group();
-    diffRoot.add(leftAxleGroup);
+    // A. LEFT AXLE & LEFT WHEEL
+    const leftSideGearGroup = new THREE.Group();
+    diffRoot.add(leftSideGearGroup);
 
     const leftSideGeo = sideBevelGeo.clone();
-    leftSideGeo.rotateY(Math.PI / 2); // +Z taper points toward +X (center!)
+    leftSideGeo.rotateY(Math.PI / 2);
     const leftSideMesh = registerMesh(new THREE.Mesh(leftSideGeo), 'leftSideGear');
     leftSideMesh.position.x = -0.58;
-    leftAxleGroup.add(leftSideMesh);
+    leftSideGearGroup.add(leftSideMesh);
 
-    const halfShaftGeo = new THREE.CylinderGeometry(0.21, 0.21, 3.15, 24);
+    const halfShaftGeo = new THREE.CylinderGeometry(0.21, 0.21, 2.95, 24);
     halfShaftGeo.rotateZ(Math.PI / 2);
     const leftShaftMesh = registerMesh(new THREE.Mesh(halfShaftGeo), 'leftSideGear');
-    leftShaftMesh.position.x = -2.15;
-    leftAxleGroup.add(leftShaftMesh);
+    leftShaftMesh.position.x = -2.08;
+    leftSideGearGroup.add(leftShaftMesh);
 
-    const leftWheelHubGroup = buildWheelBrakeHub(-1);
-    leftAxleGroup.add(leftWheelHubGroup);
+    const leftWheelAssy = buildWheelAndTireAssembly(-1, 'leftSideGear');
+    diffRoot.add(leftWheelAssy.knucklePivot);
 
-    // B. RIGHT AXLE & RIGHT SIDE BEVEL GEAR (x > 0, rotates around X-axis at rightWheelOmega)
-    const rightAxleGroup = new THREE.Group();
-    diffRoot.add(rightAxleGroup);
+    // B. RIGHT AXLE & RIGHT WHEEL
+    const rightSideGearGroup = new THREE.Group();
+    diffRoot.add(rightSideGearGroup);
 
     const rightSideGeo = sideBevelGeo.clone();
-    rightSideGeo.rotateY(-Math.PI / 2); // +Z taper points toward -X (center!)
+    rightSideGeo.rotateY(-Math.PI / 2);
     const rightSideMesh = registerMesh(new THREE.Mesh(rightSideGeo), 'rightSideGear');
     rightSideMesh.position.x = 0.58;
-    rightAxleGroup.add(rightSideMesh);
+    rightSideGearGroup.add(rightSideMesh);
 
     const rightShaftMesh = registerMesh(new THREE.Mesh(halfShaftGeo), 'rightSideGear');
-    rightShaftMesh.position.x = 2.15;
-    rightAxleGroup.add(rightShaftMesh);
+    rightShaftMesh.position.x = 2.08;
+    rightSideGearGroup.add(rightShaftMesh);
 
-    const rightWheelHubGroup = buildWheelBrakeHub(1);
-    rightAxleGroup.add(rightWheelHubGroup);
-
-    // Stationary Red 4-Piston Brake Calipers on Left & Right Hubs
-    const calipersGroup = new THREE.Group();
-    diffRoot.add(calipersGroup);
-    const caliperGeo = new THREE.BoxGeometry(0.38, 0.68, 0.42);
-    [-3.55, 3.55].forEach((cx) => {
-      const calMesh = registerMesh(new THREE.Mesh(caliperGeo), 'brakeCaliperRed');
-      calMesh.position.set(cx, 0.96, 0.86);
-      calMesh.rotation.x = -0.65;
-      calipersGroup.add(calMesh);
-    });
+    const rightWheelAssy = buildWheelAndTireAssembly(1, 'rightSideGear');
+    diffRoot.add(rightWheelAssy.knucklePivot);
 
     // ------------------------------------------------------------------------
-    // 6. SCULPTED CAST-ALUMINUM DIFFERENTIAL "PUMPKIN" HOUSING & AXLE TUBES
+    // 6. 3D ICE PATCH & ASPHALT GRIP PAD UNDER THE WHEELS (FOR SLIP SCENARIO!)
+    // ------------------------------------------------------------------------
+    const icePatchGeo = new THREE.BoxGeometry(2.2, 0.08, 3.6);
+    const icePatchMat = new THREE.MeshPhysicalMaterial({
+      color: 0x38bdf8,
+      emissive: 0x0284c7,
+      emissiveIntensity: 0.35,
+      roughness: 0.05,
+      metalness: 0.1,
+      transparent: true,
+      opacity: 0.72
+    });
+    const rightIcePatchMesh = new THREE.Mesh(icePatchGeo, icePatchMat);
+    rightIcePatchMesh.position.set(3.8, -1.82, 0);
+    rightIcePatchMesh.visible = false;
+    diffRoot.add(rightIcePatchMesh);
+
+    const asphaltPadGeo = new THREE.BoxGeometry(2.2, 0.08, 3.6);
+    const asphaltPadMat = new THREE.MeshStandardMaterial({
+      color: 0x1e293b,
+      roughness: 0.92,
+      metalness: 0.05
+    });
+    const leftAsphaltPadMesh = new THREE.Mesh(asphaltPadGeo, asphaltPadMat);
+    leftAsphaltPadMesh.position.set(-3.8, -1.82, 0);
+    leftAsphaltPadMesh.visible = false;
+    diffRoot.add(leftAsphaltPadMesh);
+
+    // Ice Slip Spray Particles behind the Right Tire when slipping on ice!
+    const iceSprayParticles = [];
+    for (let ip = 0; ip < 24; ip++) {
+      const ipMat = new THREE.SpriteMaterial({
+        map: glowTexture,
+        color: 0x7dd3fc,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      const ipSprite = new THREE.Sprite(ipMat);
+      diffRoot.add(ipSprite);
+      iceSprayParticles.push({
+        sprite: ipSprite,
+        mat: ipMat,
+        phase: ip / 24,
+        spreadX: (Math.random() - 0.5) * 0.45
+      });
+    }
+
+    // ------------------------------------------------------------------------
+    // 7. SCULPTED CAST-ALUMINUM DIFFERENTIAL "PUMPKIN" HOUSING & AXLE TUBES
     // ------------------------------------------------------------------------
     const casingGroup = new THREE.Group();
     diffRoot.add(casingGroup);
 
-    // Bulbous Center Differential Housing (Split into Rear/Bottom Half + Front/Top Cutaway Cover)
     const rearHousingGeo = new THREE.SphereGeometry(
       1.98,
       36,
@@ -723,14 +825,12 @@ export default function DifferentialSim({ theme = 'dark' }) {
     frontHousingMesh.position.set(-0.22, 0, 0);
     casingGroup.add(frontHousingMesh);
 
-    // Front Pinion Nose Snout Housing
     const snoutGeo = new THREE.CylinderGeometry(0.56, 0.88, 1.65, 28, 1, true);
     snoutGeo.rotateX(Math.PI / 2);
     const snoutMesh = registerMesh(new THREE.Mesh(snoutGeo), 'casing');
     snoutMesh.position.set(-0.92, 0, -2.25);
     casingGroup.add(snoutMesh);
 
-    // Left & Right Cast Axle Tubes
     const axleTubeGeo = new THREE.CylinderGeometry(0.42, 0.54, 1.85, 24, 1, true);
     axleTubeGeo.rotateZ(Math.PI / 2);
     const leftTubeMesh = registerMesh(new THREE.Mesh(axleTubeGeo), 'casing');
@@ -740,7 +840,7 @@ export default function DifferentialSim({ theme = 'dark' }) {
     casingGroup.add(leftTubeMesh, rightTubeMesh);
 
     // ------------------------------------------------------------------------
-    // 7. ACTIVE TORQUE FLOW PARTICLES (PINION -> CROWN -> LEFT & RIGHT AXLES)
+    // 8. ACTIVE TORQUE FLOW PARTICLES (PINION -> CROWN -> LEFT & RIGHT AXLES)
     // ------------------------------------------------------------------------
     const torqueFlowGroup = new THREE.Group();
     diffRoot.add(torqueFlowGroup);
@@ -785,7 +885,7 @@ export default function DifferentialSim({ theme = 'dark' }) {
     }
 
     // ------------------------------------------------------------------------
-    // 8. MATERIAL MODES, VISIBILITY & REAL-TIME DIFFERENTIAL KINEMATICS LOOP
+    // 9. MATERIAL MODES, VISIBILITY & REAL-TIME DIFFERENTIAL KINEMATICS LOOP
     // ------------------------------------------------------------------------
     const updateMaterialModes = () => {
       const {
@@ -794,10 +894,10 @@ export default function DifferentialSim({ theme = 'dark' }) {
         cutawayMode: cut,
         showCasing: sCase,
         showCarrierCage: sCarrier,
-        showLsdClutches: sLsd,
         showWheelHubs: sWheels,
         showTorqueFlow: sFlow,
         diffType: dType,
+        drivingScenario: scenario,
         exploded: exp,
         theme: activeTheme
       } = simParams.current;
@@ -806,8 +906,17 @@ export default function DifferentialSim({ theme = 'dark' }) {
       rawCasingMat.opacity = cOp;
       wireframeCasingMat.opacity = Math.max(0.14, cOp);
 
-      // Highlight LSD Clutch Packs brightly when LSD mode is active
-      realisticMats.lsdClutchFriction.emissiveIntensity = dType === 'lsd' ? 0.55 : 0.08;
+      realisticMats.lsdClutchFriction.emissiveIntensity = dType === 'lsd' ? 0.75 : 0.05;
+
+      // Physically clamp the LSD clutch packs inward toward the side gears when LSD mode is active!
+      const lsdClampShift = dType === 'lsd' ? 0.08 : -0.04;
+      leftLsdClutchGroup.position.x = lsdClampShift;
+      rightLsdClutchGroup.position.x = -lsdClampShift;
+
+      // Show the 3D Ice Patch under the Right Wheel and Asphalt Pad under the Left Wheel during Slip test!
+      const isSlipTest = scenario === 'slip_right';
+      rightIcePatchMesh.visible = isSlipTest;
+      leftAsphaltPadMesh.visible = isSlipTest;
 
       trackedMeshes.forEach(({ mesh, type, baseMat, wireOverlay }) => {
         const isTranslucent = type === 'casing';
@@ -838,22 +947,25 @@ export default function DifferentialSim({ theme = 'dark' }) {
       casingGroup.visible = sCase;
       frontHousingMesh.visible = sCase && (!cut || exp > 0.08);
       carrierCageSubGroup.visible = sCarrier;
-      lsdClutchGroup.visible = sLsd;
-      leftWheelHubGroup.visible = sWheels;
-      rightWheelHubGroup.visible = sWheels;
-      calipersGroup.visible = sWheels;
+      leftLsdClutchGroup.visible = sCarrier;
+      rightLsdClutchGroup.visible = sCarrier;
+      leftWheelAssy.knucklePivot.visible = sWheels;
+      rightWheelAssy.knucklePivot.visible = sWheels;
       torqueFlowGroup.visible = sFlow;
 
       // Exploded View Offsets
       pinionGroup.position.z = -1.62 - exp * 1.15;
-      leftAxleGroup.position.x = -exp * 1.15;
-      rightAxleGroup.position.x = exp * 1.15;
+      leftSideGearGroup.position.x = -exp * 0.95;
+      rightSideGearGroup.position.x = exp * 0.95;
+      leftWheelAssy.knucklePivot.position.x = -3.65 - exp * 1.15;
+      rightWheelAssy.knucklePivot.position.x = 3.65 + exp * 1.15;
       topSpiderGroup.position.y = 0.62 + exp * 0.45;
       botSpiderGroup.position.y = -0.62 - exp * 0.45;
       frontHousingMesh.position.y = exp * 1.35;
     };
 
     let lastTime = performance.now();
+    let currentSteerAngle = 0;
     let uiCounter = 0;
     let animationFrameId;
 
@@ -867,58 +979,95 @@ export default function DifferentialSim({ theme = 'dark' }) {
         isPlaying: playing,
         driveshaftRpm: inRpm,
         diffType: dType,
+        drivingScenario: scenario,
         steeringBias: rawBias,
         lsdLockPct: lockPct,
         autoRotateCam: autoCam
       } = simParams.current;
 
       // 1. Input Driveshaft & Carrier Cage Angular Velocities
-      const visualSpeedScale = 0.085;
+      const visualSpeedScale = 0.095;
       const pinionOmega = playing ? ((inRpm * 2 * Math.PI) / 60) * visualSpeedScale : 0;
       const carrierOmega = pinionOmega / FINAL_DRIVE_RATIO;
 
-      // 2. Compute Effective Speed Difference Factor (deltaFrac) between Left & Right Wheels:
-      //    In Open Diff mode: full steering/slip bias applies (-1.0 means Left stops, Right = 2x!).
-      //    In Clutch-Pack LSD mode: the multi-plate clutch resists speed differences by lockPct%!
-      const lsdDamping = dType === 'lsd' ? 1 - (lockPct / 100) * 0.82 : 1.0;
+      // 2. Physical Wheel Steering Angle for Turn Left / Turn Right (So user sees the tires turn!)
+      let targetSteerYaw = 0;
+      if (scenario === 'turn_left' || (rawBias < -0.05 && scenario !== 'slip_right')) {
+        targetSteerYaw = 0.34; // Turn wheels Left
+      } else if (scenario === 'turn_right' || rawBias > 0.05) {
+        targetSteerYaw = -0.34; // Turn wheels Right
+      }
+      currentSteerAngle += (targetSteerYaw - currentSteerAngle) * Math.min(1, dt * 10);
+      leftWheelAssy.knucklePivot.rotation.y = currentSteerAngle;
+      rightWheelAssy.knucklePivot.rotation.y = currentSteerAngle;
+
+      // 3. Compute Effective Speed Difference Factor (effectiveBias) between Left & Right Wheels:
+      //    - In Open Diff: 100% of rawBias applies (so on Ice Slip, Left = 0 RPM, Right = 200% RPM!).
+      //    - In Clutch-Pack LSD:
+      //      During Ice Slip, the LSD clutch pack locks 85% of the slip so Left Wheel gets 85% speed!
+      //      During normal Cornering, LSD allows partial differentiation while reducing inner wheel spin.
+      const lsdDamping =
+        dType === 'lsd'
+          ? scenario === 'slip_right'
+            ? 0.15 // LSD locks up 85% on ice!
+            : 1 - (lockPct / 100) * 0.45
+          : 1.0;
       const effectiveBias = rawBias * lsdDamping;
 
-      // Fundamental Epicyclic Differential Law:
-      //   leftOmega  = carrierOmega * (1 + effectiveBias)
-      //   rightOmega = carrierOmega * (1 - effectiveBias)
-      //   -> Average (leftOmega + rightOmega) / 2 === carrierOmega ALWAYS!
-      //   When effectiveBias < 0 (Turn Left or Right Wheel Slip):
-      //     Left wheel slows down, Right wheel speeds up!
       const leftOmega = carrierOmega * (1 + effectiveBias);
       const rightOmega = carrierOmega * (1 - effectiveBias);
-      const diffOmega = rightOmega - carrierOmega; // Relative speed of Right Side Gear inside Carrier
+      const diffOmega = rightOmega - carrierOmega;
 
-      // 3. Rotate Pinion, Carrier Cage, Left Axle, Right Axle & Spider Bevel Gears!
+      // 4. Rotate Pinion, Carrier Cage, Left Axle/Wheel, Right Axle/Wheel & Spider Gears!
       pinionGroup.rotation.z -= pinionOmega * dt;
       carrierGroup.rotation.x += carrierOmega * dt;
-      leftAxleGroup.rotation.x += leftOmega * dt;
-      rightAxleGroup.rotation.x += rightOmega * dt;
+
+      leftSideGearGroup.rotation.x += leftOmega * dt;
+      leftWheelAssy.wheelSpinGroup.rotation.x += leftOmega * dt;
+
+      rightSideGearGroup.rotation.x += rightOmega * dt;
+      rightWheelAssy.wheelSpinGroup.rotation.x += rightOmega * dt;
 
       // Spider Bevel Gears spin around their local Y-axis ONLY when leftOmega !== rightOmega!
       const spiderLocalOmega = diffOmega * (SIDE_TEETH / SPIDER_TEETH);
       topSpiderGroup.rotation.y += spiderLocalOmega * dt;
       botSpiderGroup.rotation.y -= spiderLocalOmega * dt;
 
+      // 5. Animate Ice Slip Spray Particles when Right Wheel is slipping on ice
+      const isIceSlip = scenario === 'slip_right' && playing;
+      iceSprayParticles.forEach((ip) => {
+        if (isIceSlip) {
+          const slipSpeed = dType === 'open' ? 2.4 : 1.1;
+          ip.phase = (ip.phase + dt * slipSpeed) % 1.0;
+          const p = ip.phase;
+          ip.sprite.position.set(
+            3.8 + ip.spreadX,
+            -1.72 + p * 1.15,
+            -0.65 - p * 1.95
+          );
+          const s = 0.25 + p * 0.55;
+          ip.sprite.scale.set(s, s, 1);
+          ip.mat.opacity = (1 - p) * (dType === 'open' ? 0.85 : 0.45);
+        } else {
+          ip.mat.opacity = 0;
+        }
+      });
+
       // Pulse the internal spider glow light when differential action is occurring
       const diffActivity = Math.min(1, Math.abs(effectiveBias) * 1.5);
-      spiderGlowLight.intensity = 1.1 + diffActivity * 2.4;
+      spiderGlowLight.intensity = 1.1 + diffActivity * 2.8;
 
-      // 4. Animate Left & Right Torque Flow Particles proportional to each wheel's speed & torque
+      // 6. Animate Left & Right Torque Flow Particles proportional to each wheel's speed & torque
       flowParticles.forEach((fp) => {
         const sideSpeed = fp.isRightSide ? Math.abs(rightOmega) : Math.abs(leftOmega);
-        if (playing) {
-          fp.u = (fp.u + dt * (0.22 + sideSpeed * 0.35)) % 1.0;
+        if (playing && sideSpeed > 0.01) {
+          fp.u = (fp.u + dt * (0.18 + sideSpeed * 0.42)) % 1.0;
         }
         const safeU = Math.max(0.001, Math.min(0.999, fp.u));
         const curve = fp.isRightSide ? rightTorqueCurve : leftTorqueCurve;
         const pt = curve.getPoint(safeU);
         fp.sprite.position.copy(pt);
-        fp.mat.opacity = sideSpeed > 0.02 ? 0.78 * Math.sin(safeU * Math.PI) : 0.12;
+        fp.mat.opacity = sideSpeed > 0.01 ? 0.82 * Math.sin(safeU * Math.PI) : 0.08;
       });
 
       updateMaterialModes();
@@ -934,20 +1083,23 @@ export default function DifferentialSim({ theme = 'dark' }) {
         const cRpm = Math.round(inRpm / FINAL_DRIVE_RATIO);
         const lRpm = Math.round(cRpm * (1 + effectiveBias));
         const rRpm = Math.round(cRpm * (1 - effectiveBias));
+        const lPct = Math.round((1 + effectiveBias) * 100);
+        const rPct = Math.round((1 - effectiveBias) * 100);
         const spRpm = Math.round(Math.abs(rRpm - cRpm) * (SIDE_TEETH / SPIDER_TEETH));
 
-        // Torque split calculation (Total carrier torque = 1080 Nm):
         const totalCarrierTorque = 1080;
         let lTorque = 540;
         let rTorque = 540;
-        if (Math.abs(rawBias) >= 0.95 && dType === 'open') {
-          // Open diff on ice: nearly 0 usable torque to the gripping wheel!
-          lTorque = 45;
-          rTorque = 45;
-        } else if (dType === 'lsd' && Math.abs(rawBias) > 0.05) {
-          const lockFrac = lockPct / 100;
-          const fasterIsRight = effectiveBias < 0;
-          lTorque = Math.round(totalCarrierTorque * (fasterIsRight ? 0.5 + lockFrac * 0.35 : 0.5 - lockFrac * 0.35));
+        if (scenario === 'slip_right' && dType === 'open') {
+          // Open diff on ice: 0 Nm usable traction on the left wheel!
+          lTorque = 0;
+          rTorque = 40;
+        } else if (scenario === 'slip_right' && dType === 'lsd') {
+          // Clutch-Pack LSD locks and sends 890 Nm to the gripping Left Wheel!
+          lTorque = 890;
+          rTorque = 190;
+        } else if (dType === 'lsd' && Math.abs(effectiveBias) > 0.05) {
+          lTorque = effectiveBias < 0 ? 680 : 400;
           rTorque = totalCarrierTorque - lTorque;
         }
 
@@ -955,6 +1107,8 @@ export default function DifferentialSim({ theme = 'dark' }) {
           carrierRpm: cRpm,
           leftWheelRpm: lRpm,
           rightWheelRpm: rRpm,
+          leftPct: lPct,
+          rightPct: rPct,
           spiderSelfRpm: spRpm,
           leftTorqueNm: lTorque,
           rightTorqueNm: rTorque
@@ -981,6 +1135,8 @@ export default function DifferentialSim({ theme = 'dark' }) {
     };
   }, []);
 
+  const currentScenarioInfo = SCENARIO_INFO[drivingScenario] || SCENARIO_INFO.straight;
+
   const sheet = {
     panel: 'bg-white text-[#101828]',
     idle: 'bg-[#eef1f4] text-[#101828] hover:bg-[#e2e7ec]',
@@ -998,12 +1154,44 @@ export default function DifferentialSim({ theme = 'dark' }) {
       />
 
       {/* =========================================================
+          TOP-CENTER FLOATING 3D WHEEL SPEED COMPARISON PILLS
+      ========================================================= */}
+      <div className="pointer-events-none absolute top-4 left-1/2 z-10 hidden -translate-x-1/2 items-center gap-2 xl:flex">
+        <div className="bg-white px-4 py-2 text-[#101828] shadow-sm">
+          <span className="block text-xs uppercase tracking-wider text-[#475467]">
+            Ban Kiri (Aspal)
+          </span>
+          <span className="font-mono text-lg font-bold tabular-nums text-[#10b981]">
+            {isPlaying ? telemetry.leftWheelRpm : 0} RPM ({isPlaying ? telemetry.leftPct : 0}%)
+          </span>
+        </div>
+        <div className="bg-[#101828] px-4 py-2 text-white shadow-sm">
+          <span className="block text-xs uppercase tracking-wider text-slate-300">
+            Spider Gear Tengah
+          </span>
+          <span className="font-mono text-lg font-bold tabular-nums text-[#fb6514]">
+            {isPlaying && telemetry.spiderSelfRpm > 0
+              ? `BERPUTAR ${telemetry.spiderSelfRpm} RPM`
+              : 'DIAM (TERKUNCI)'}
+          </span>
+        </div>
+        <div className="bg-white px-4 py-2 text-[#101828] shadow-sm">
+          <span className="block text-xs uppercase tracking-wider text-[#475467]">
+            {drivingScenario === 'slip_right' ? 'Ban Kanan (Di Atas Es!)' : 'Ban Kanan'}
+          </span>
+          <span className="font-mono text-lg font-bold tabular-nums text-[#06b6d4]">
+            {isPlaying ? telemetry.rightWheelRpm : 0} RPM ({isPlaying ? telemetry.rightPct : 0}%)
+          </span>
+        </div>
+      </div>
+
+      {/* =========================================================
           TOP-LEFT: DIFFERENTIAL TELEMETRY, OPEN vs LSD & SCENARIOS
       ========================================================= */}
       <div className="pointer-events-none absolute top-4 left-4 z-10 max-h-[calc(100%-11rem)] w-[min(28rem,calc(100%-2rem))] overflow-y-auto max-[720px]:max-h-[50%] max-[720px]:w-[calc(100%-2rem)]">
         <section
           aria-label="Open & Limited-Slip Differential"
-          className={`pointer-events-auto flex flex-col gap-5 p-5 ${sheet.panel}`}
+          className={`pointer-events-auto flex flex-col gap-4 p-5 ${sheet.panel}`}
           style={{ colorScheme: 'light' }}
         >
           <div className="flex items-baseline justify-between gap-4">
@@ -1017,10 +1205,6 @@ export default function DifferentialSim({ theme = 'dark' }) {
               3.45 : 1
             </p>
           </div>
-
-          <p className="m-0 text-base leading-relaxed">
-            Gardan hipoid (11T → 38T) dengan roda gigi planet *spider bevel* yang memungkinkan roda kiri dan kanan berputar pada kecepatan berbeda saat menikung, dilengkapi kopling *Limited-Slip Differential (LSD)*.
-          </p>
 
           {/* Toggle: Open Differential vs Clutch-Pack LSD */}
           <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Tipe Gardan">
@@ -1048,9 +1232,9 @@ export default function DifferentialSim({ theme = 'dark' }) {
           {/* Driving Scenario Selector Buttons */}
           <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Skenario Jalan">
             {[
-              { id: 'straight', label: 'Jalan Lurus (1:1)' },
-              { id: 'turn_left', label: 'Belok Kiri (R > L)' },
-              { id: 'turn_right', label: 'Belok Kanan (L > R)' },
+              { id: 'straight', label: 'Jalan Lurus (100:100)' },
+              { id: 'turn_left', label: 'Belok Kiri (35:165)' },
+              { id: 'turn_right', label: 'Belok Kanan (165:35)' },
               { id: 'slip_right', label: 'Roda Kanan Selip Es!' }
             ].map((sc) => {
               const active = drivingScenario === sc.id;
@@ -1060,7 +1244,7 @@ export default function DifferentialSim({ theme = 'dark' }) {
                   type="button"
                   aria-pressed={active}
                   onClick={() => handleSelectScenario(sc.id)}
-                  className={`px-2.5 py-2 text-center text-base font-semibold ${hit} ${
+                  className={`px-2.5 py-2.5 text-center text-base font-semibold ${hit} ${
                     active ? sheet.chosen : sheet.idle
                   }`}
                 >
@@ -1070,18 +1254,26 @@ export default function DifferentialSim({ theme = 'dark' }) {
             })}
           </div>
 
+          {/* Dynamic Scenario Explanation Box */}
+          <div className="border-l-4 border-[#fb6514] bg-[#eef1f4] p-3">
+            <p className="m-0 text-sm font-bold text-[#101828]">{currentScenarioInfo.title}</p>
+            <p className="m-0 mt-1 text-sm leading-relaxed text-[#101828]">
+              {diffType === 'open' ? currentScenarioInfo.openDesc : currentScenarioInfo.lsdDesc}
+            </p>
+          </div>
+
           {/* 2x2 Telemetry Readouts */}
           <div className="grid grid-cols-2 gap-2">
             {[
               {
                 label: 'Roda kiri (Hijau)',
-                value: isPlaying ? telemetry.leftWheelRpm : 0,
-                unit: `rpm · ${isPlaying ? telemetry.leftTorqueNm : 0} Nm`
+                value: isPlaying ? `${telemetry.leftWheelRpm} rpm` : '0 rpm',
+                unit: `(${isPlaying ? telemetry.leftPct : 0}%) · ${isPlaying ? telemetry.leftTorqueNm : 0} Nm`
               },
               {
                 label: 'Roda kanan (Cyan)',
-                value: isPlaying ? telemetry.rightWheelRpm : 0,
-                unit: `rpm · ${isPlaying ? telemetry.rightTorqueNm : 0} Nm`
+                value: isPlaying ? `${telemetry.rightWheelRpm} rpm` : '0 rpm',
+                unit: `(${isPlaying ? telemetry.rightPct : 0}%) · ${isPlaying ? telemetry.rightTorqueNm : 0} Nm`
               },
               {
                 label: 'Crown carrier cage',
@@ -1091,7 +1283,7 @@ export default function DifferentialSim({ theme = 'dark' }) {
               {
                 label: 'Putaran spider gear',
                 value: isPlaying ? telemetry.spiderSelfRpm : 0,
-                unit: telemetry.spiderSelfRpm === 0 ? 'rpm (Terkunci)' : 'rpm (Aktif!)'
+                unit: telemetry.spiderSelfRpm === 0 ? 'rpm (Diam)' : 'rpm (Aktif!)'
               }
             ].map((item) => (
               <div key={item.label} className="bg-[#eef1f4] px-3 py-2">
@@ -1155,7 +1347,7 @@ export default function DifferentialSim({ theme = 'dark' }) {
             {[
               { label: 'Rumah gardan', state: showCasing, setter: setShowCasing },
               { label: 'Carrier & LSD pack', state: showCarrierCage, setter: setShowCarrierCage },
-              { label: 'Rem & hub roda', state: showWheelHubs, setter: setShowWheelHubs },
+              { label: 'Ban & rem roda', state: showWheelHubs, setter: setShowWheelHubs },
               { label: 'Aliran torsi', state: showTorqueFlow, setter: setShowTorqueFlow }
             ].map((item) => (
               <button
@@ -1196,7 +1388,7 @@ export default function DifferentialSim({ theme = 'dark' }) {
             />
             <div className="flex flex-wrap gap-2">
               {[
-                { value: 400, label: '400 crawl' },
+                { value: 600, label: '600 slow' },
                 { value: 1800, label: '1800 cruise' },
                 { value: 3600, label: '3600 sprint' }
               ].map((preset) => (
@@ -1218,7 +1410,7 @@ export default function DifferentialSim({ theme = 'dark' }) {
             </div>
           </div>
 
-          {/* Column 2: Steering / Wheel Speed Bias OR LSD Locking Preload */}
+          {/* Column 2: Steering / Wheel Speed Bias */}
           <div className="flex flex-col gap-2">
             <p className="m-0 text-base">
               <span className="font-semibold tabular-nums">
@@ -1249,7 +1441,9 @@ export default function DifferentialSim({ theme = 'dark' }) {
               <button
                 type="button"
                 onClick={() => handleSelectScenario('turn_left')}
-                className={`px-2 py-1 ${hit} ${sheet.idle}`}
+                className={`px-2 py-1 ${hit} ${
+                  drivingScenario === 'turn_left' ? sheet.chosen : sheet.idle
+                }`}
               >
                 Belok Kiri
               </button>
@@ -1257,7 +1451,7 @@ export default function DifferentialSim({ theme = 'dark' }) {
                 type="button"
                 onClick={() => handleSelectScenario('straight')}
                 className={`px-2 py-1 ${hit} ${
-                  steeringBias === 0 ? sheet.chosen : sheet.idle
+                  drivingScenario === 'straight' ? sheet.chosen : sheet.idle
                 }`}
               >
                 Lurus
@@ -1265,7 +1459,9 @@ export default function DifferentialSim({ theme = 'dark' }) {
               <button
                 type="button"
                 onClick={() => handleSelectScenario('turn_right')}
-                className={`px-2 py-1 ${hit} ${sheet.idle}`}
+                className={`px-2 py-1 ${hit} ${
+                  drivingScenario === 'turn_right' ? sheet.chosen : sheet.idle
+                }`}
               >
                 Belok Kanan
               </button>
@@ -1348,12 +1544,11 @@ export default function DifferentialSim({ theme = 'dark' }) {
               setDrivingScenario('straight');
               setSteeringBias(0);
               setExploded(0);
-              setCasingOpacity(0.22);
+              setCasingOpacity(0.20);
               setCutawayMode(true);
               setRenderMode('realistic');
               setShowCasing(true);
               setShowCarrierCage(true);
-              setShowLsdClutches(true);
               setShowWheelHubs(true);
               setShowTorqueFlow(true);
               setAutoRotateCam(false);
