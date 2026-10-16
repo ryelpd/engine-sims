@@ -4,6 +4,13 @@ import './landing.css';
 
 const machines = [
   {
+    path: '/flat-6',
+    name: 'Flat-6 Boxer',
+    spec: '1-6-2-4-3-5',
+    image: '/lab/generated/v8.png',
+    line: 'Porsche 911 GT3 4.0L horizontally opposed 180° Boxer with 6 independent crankpins, 24 DOHC valves, and 9,000 RPM redline.'
+  },
+  {
     path: '/differential',
     name: 'Differential & LSD',
     spec: '3.45 : 1',
