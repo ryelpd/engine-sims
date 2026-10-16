@@ -682,30 +682,81 @@ export default function FourStrokeEngine({ theme = 'dark' }) {
     fireballMesh.position.set(0, deckY - 0.1, 0);
     gasGroup.add(fireballMesh);
 
-    // Gas / Fuel-Air / Exhaust Particles inside Manifold & Chamber
-    const particleCount = 110;
+    // =========================================================
+    // VOLUMETRIC GAS & COMBUSTION SPRITE SYSTEM
+    // =========================================================
+    const createSoftGlowTexture = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      grad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+      grad.addColorStop(0.18, 'rgba(255, 255, 255, 0.88)');
+      grad.addColorStop(0.48, 'rgba(255, 255, 255, 0.32)');
+      grad.addColorStop(0.78, 'rgba(255, 255, 255, 0.08)');
+      grad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 128, 128);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.needsUpdate = true;
+      return tex;
+    };
+
+    const glowTexture = createSoftGlowTexture();
+
+    const particleCount = 130;
     const gasParticles = [];
-    const pGeo = new THREE.SphereGeometry(0.055, 8, 8);
 
     for (let i = 0; i < particleCount; i++) {
-      const pMat = new THREE.MeshBasicMaterial({
+      const isHaze = i % 5 === 0;
+      const baseScale = isHaze ? (0.48 + Math.random() * 0.26) : (0.22 + Math.random() * 0.12);
+      const baseOpacity = isHaze ? 0.35 : 0.65;
+
+      const pMat = new THREE.SpriteMaterial({
+        map: glowTexture,
         color: 0x38bdf8,
         transparent: true,
-        opacity: 0.8,
+        opacity: baseOpacity,
         blending: THREE.AdditiveBlending,
         depthWrite: false
       });
-      const pMesh = new THREE.Mesh(pGeo, pMat);
-      gasGroup.add(pMesh);
+      const sprite = new THREE.Sprite(pMat);
+      sprite.scale.set(baseScale, baseScale, 1);
+      gasGroup.add(sprite);
 
       gasParticles.push({
-        mesh: pMesh,
+        sprite,
         mat: pMat,
         normY: Math.random(),
-        rFrac: 0.15 + Math.random() * 0.78,
+        rFrac: 0.12 + Math.random() * 0.82,
         theta: Math.random() * Math.PI * 2,
         swirlSpeed: (Math.random() - 0.5) * 4.5,
-        streamPhase: Math.random()
+        streamPhase: Math.random(),
+        baseScale,
+        baseOpacity,
+        isHaze
+      });
+    }
+
+    // Dynamic Spark Plug Embers spraying into the Pent-Roof combustion chamber
+    const sparkEmbers = [];
+    for (let i = 0; i < 20; i++) {
+      const emberMat = new THREE.SpriteMaterial({
+        map: glowTexture,
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      const emberSprite = new THREE.Sprite(emberMat);
+      gasGroup.add(emberSprite);
+      sparkEmbers.push({
+        sprite: emberSprite,
+        mat: emberMat,
+        seed: Math.random() * Math.PI * 2,
+        spd: 0.9 + Math.random() * 1.5
       });
     }
 
@@ -1163,7 +1214,7 @@ export default function FourStrokeEngine({ theme = 'dark' }) {
 
       combustionLight.intensity = sparkIntensity * 6.0 + fireballIntensity * 4.5;
 
-      // Update Gas & Fuel/Exhaust Streamline Particles
+      // Update Volumetric Gas & Fuel/Exhaust Streamline Sprites
       gasParticles.forEach((p, idx) => {
         if (playing) {
           p.theta += p.swirlSpeed * dt;
@@ -1172,45 +1223,76 @@ export default function FourStrokeEngine({ theme = 'dark' }) {
 
         const t = Math.max(0.0001, Math.min(0.9999, isNaN(p.streamPhase) ? 0.5 : p.streamPhase));
 
-        if (strokeIdx === 0 && idx < 40) {
+        if (strokeIdx === 0 && idx < 45) {
           // Intake manifold fuel-air spray rushing into cylinder
           const pt = sampleCurve(intakeCurve, 1.0 - t);
-          p.mesh.position.set(
+          p.sprite.position.set(
             pt.x + Math.cos(p.theta) * 0.16,
             pt.y + Math.sin(p.theta) * 0.16,
             pt.z + Math.sin(p.theta * 2) * 0.16
           );
           p.mat.color.setHex(0x38bdf8);
-          p.mat.opacity = 0.85;
-        } else if (strokeIdx === 3 && idx < 40) {
+          p.mat.opacity = p.baseOpacity * Math.sin(t * Math.PI) * 1.1;
+          const s = p.baseScale * (1.0 + Math.sin(t * Math.PI) * 0.3);
+          p.sprite.scale.set(s, s, 1);
+        } else if (strokeIdx === 3 && idx < 45) {
           // Exhaust port burnt gas rushing out of cylinder
           const pt = sampleCurve(exhaustCurve, t);
-          p.mesh.position.set(
+          p.sprite.position.set(
             pt.x + Math.cos(p.theta) * 0.18,
             pt.y + Math.sin(p.theta) * 0.18,
             pt.z + Math.cos(p.theta * 2) * 0.18
           );
           p.mat.color.setHex(0xf97316);
-          p.mat.opacity = 0.75;
+          p.mat.opacity = p.baseOpacity * Math.max(0.12, 1 - t * 0.75);
+          const s = p.baseScale * (1.0 + t * 0.7);
+          p.sprite.scale.set(s, s, 1);
         } else {
           // Swirling turbulent gas particles inside cylinder volume
           const rad = p.rFrac * (pR * 0.88);
           const py = crownTopY + 0.08 + p.normY * Math.max(0.1, chamberH - 0.14);
-          p.mesh.position.set(Math.cos(p.theta) * rad, py, Math.sin(p.theta) * rad);
+          p.sprite.position.set(Math.cos(p.theta) * rad, py, Math.sin(p.theta) * rad);
 
           if (strokeIdx === 0) {
             p.mat.color.setHex(0x38bdf8);
-            p.mat.opacity = 0.75;
+            p.mat.opacity = p.baseOpacity * 0.85;
+            p.sprite.scale.set(p.baseScale, p.baseScale, 1);
           } else if (strokeIdx === 1) {
             p.mat.color.setHex(0xfbbf24);
-            p.mat.opacity = 0.85;
+            p.mat.opacity = (p.baseOpacity * 0.9) + 0.25 * (chamberH < 1.0 ? 1 : 0.5);
+            const s = p.baseScale * 0.9;
+            p.sprite.scale.set(s, s, 1);
           } else if (strokeIdx === 2) {
-            p.mat.color.setHex(0xff5500);
-            p.mat.opacity = 0.95;
+            p.mat.color.setHex(fireballIntensity > 0.4 ? 0xffffff : 0xff5500);
+            p.mat.opacity = (p.baseOpacity * 1.3) * Math.max(0.3, fireballIntensity);
+            const s = p.baseScale * (1.3 + fireballIntensity * 0.4);
+            p.sprite.scale.set(s, s, 1);
           } else {
             p.mat.color.setHex(0x94a3b8);
-            p.mat.opacity = 0.6;
+            p.mat.opacity = p.baseOpacity * 0.65;
+            const s = p.baseScale * 1.1;
+            p.sprite.scale.set(s, s, 1);
           }
+        }
+      });
+
+      // Update Spark Plug Embers during Power Ignition
+      sparkEmbers.forEach((se) => {
+        if (sparkIntensity > 0.08) {
+          const prog = ((now * 0.003 * se.spd + se.seed) % 1.0);
+          const sprayAng = (se.seed - 0.5) * 1.8;
+          const dist = prog * 0.9;
+          const ex = Math.sin(sprayAng) * dist;
+          const ey = deckY + 0.18 - Math.cos(sprayAng) * dist;
+          const ez = Math.sin(se.seed * 3) * 0.35 * prog;
+
+          se.sprite.position.set(ex, ey, ez);
+          const s = (0.12 + (1 - prog) * 0.16) * sparkIntensity;
+          se.sprite.scale.set(s, s, 1);
+          se.mat.opacity = sparkIntensity * (1 - prog) * 0.95;
+          se.mat.color.setHex(prog < 0.25 ? 0xffffff : 0xfde047);
+        } else {
+          se.mat.opacity = 0;
         }
       });
 
@@ -1261,6 +1343,7 @@ export default function FourStrokeEngine({ theme = 'dark' }) {
       cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
+      glowTexture.dispose();
       renderer.dispose();
       if (renderer.domElement && renderer.domElement.parentNode) {
         renderer.domElement.parentNode.removeChild(renderer.domElement);

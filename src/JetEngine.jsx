@@ -847,34 +847,83 @@ export default function JetEngine({ theme = 'dark' }) {
     exhaustGroup.add(tailPlugMesh);
 
     // ============================================================================
-    // 5. AIRFLOW & AFTERBURNER PLUME PARTICLES
+    // 5. VOLUMETRIC AIRFLOW & AFTERBURNER PLUME SPRITE SYSTEM
     // ============================================================================
-    const particleCount = 200;
+    const createSoftGlowTexture = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      grad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+      grad.addColorStop(0.18, 'rgba(255, 255, 255, 0.88)');
+      grad.addColorStop(0.48, 'rgba(255, 255, 255, 0.32)');
+      grad.addColorStop(0.78, 'rgba(255, 255, 255, 0.08)');
+      grad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 128, 128);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.needsUpdate = true;
+      return tex;
+    };
+
+    const glowTexture = createSoftGlowTexture();
+
+    const particleCount = 210;
     const airflowParticles = [];
     const airflowGroup = new THREE.Group();
     engineRoot.add(airflowGroup);
 
-    const streakGeo = new THREE.BoxGeometry(0.035, 0.035, 0.55);
     for (let p = 0; p < particleCount; p++) {
       const isBypass = p % 2 === 0;
-      const pMat = new THREE.MeshBasicMaterial({
+      const isHaze = p % 5 === 0;
+      const baseScale = isHaze ? (0.55 + Math.random() * 0.35) : (0.24 + Math.random() * 0.15);
+      const baseOpacity = isHaze ? 0.32 : 0.68;
+
+      const pMat = new THREE.SpriteMaterial({
+        map: glowTexture,
         color: isBypass ? 0x38bdf8 : 0x60a5fa,
         transparent: true,
-        opacity: 0.75,
+        opacity: baseOpacity,
         blending: THREE.AdditiveBlending,
         depthWrite: false
       });
-      const pMesh = new THREE.Mesh(streakGeo, pMat);
-      airflowGroup.add(pMesh);
+      const sprite = new THREE.Sprite(pMat);
+      sprite.scale.set(baseScale, baseScale, 1);
+      airflowGroup.add(sprite);
 
       airflowParticles.push({
-        mesh: pMesh,
+        sprite,
         mat: pMat,
         isBypass,
+        isHaze,
+        baseScale,
+        baseOpacity,
         z: 5.5 - Math.random() * 11.5,
         angle: Math.random() * Math.PI * 2,
         radialFrac: 0.2 + Math.random() * 0.8,
         swirlSpeed: (Math.random() - 0.5) * 3.0
+      });
+    }
+
+    // High-Velocity Supersonic Exhaust Diamonds Thrust Sparks
+    const thrustSparks = [];
+    for (let s = 0; s < 28; s++) {
+      const spkMat = new THREE.SpriteMaterial({
+        map: glowTexture,
+        color: 0x93c5fd,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      const spkSprite = new THREE.Sprite(spkMat);
+      airflowGroup.add(spkSprite);
+      thrustSparks.push({
+        sprite: spkSprite,
+        mat: spkMat,
+        seed: Math.random() * Math.PI * 2,
+        spd: 1.5 + Math.random() * 2.2
       });
     }
 
@@ -1070,25 +1119,53 @@ export default function JetEngine({ theme = 'dark' }) {
           if (p.isBypass) {
             r = 1.42 + p.radialFrac * 0.92;
             p.mat.color.setHex(0x38bdf8);
-            p.mat.opacity = p.z < 0.5 ? Math.max(0, (p.z + 2.5) / 3.0) * 0.7 : 0.75;
+            p.mat.opacity = p.baseOpacity * (p.z < 0.5 ? Math.max(0, (p.z + 2.5) / 3.0) * 0.7 : 0.85);
+            p.sprite.scale.set(p.baseScale, p.baseScale, 1);
           } else {
             if (p.z > 3.5) {
               r = 0.8 + p.radialFrac * 0.9;
               p.mat.color.setHex(0x38bdf8);
+              p.mat.opacity = p.baseOpacity * 0.85;
+              p.sprite.scale.set(p.baseScale, p.baseScale, 1);
             } else if (p.z > -0.25) {
               r = 0.78 + p.radialFrac * 0.28;
               p.mat.color.setHex(p.z < 1.2 ? 0xfbbf24 : 0x60a5fa);
+              p.mat.opacity = p.baseOpacity * 0.95;
+              p.sprite.scale.set(p.baseScale * 0.9, p.baseScale * 0.9, 1);
             } else if (p.z > -1.7) {
               r = 0.76 + p.radialFrac * 0.28;
               p.mat.color.setHex(0xff5500);
+              p.mat.opacity = p.baseOpacity * 1.25;
+              p.sprite.scale.set(p.baseScale * 1.3, p.baseScale * 1.3, 1);
             } else {
               r = 0.62 + p.radialFrac * 0.62;
               p.mat.color.setHex(abOn ? 0x93c5fd : 0xf97316);
+              p.mat.opacity = p.baseOpacity * (abOn ? 1.35 : 0.9);
+              p.sprite.scale.set(p.baseScale * 1.4, p.baseScale * 1.4, 1);
             }
-            p.mat.opacity = 0.85;
           }
 
-          p.mesh.position.set(Math.cos(p.angle) * r, Math.sin(p.angle) * r, p.z);
+          p.sprite.position.set(Math.cos(p.angle) * r, Math.sin(p.angle) * r, p.z);
+        });
+
+        // Animate Supersonic Afterburner Thrust Sparks
+        thrustSparks.forEach((ts) => {
+          if (abOn && combOn) {
+            const prog = ((now * 0.005 * ts.spd + ts.seed) % 1.0);
+            const r = 0.15 + (1 - prog) * 0.82;
+            const sprayAng = ts.seed * Math.PI * 2 + now * 0.004;
+            const sz = -4.9 - prog * 4.8;
+            const sx = Math.cos(sprayAng) * r;
+            const sy = Math.sin(sprayAng) * r;
+
+            ts.sprite.position.set(sx, sy, sz);
+            const scale = (0.16 + (1 - prog) * 0.25) * (0.8 + normThrottle * 0.4);
+            ts.sprite.scale.set(scale, scale, 1);
+            ts.mat.opacity = (1 - prog) * (0.7 + normThrottle * 0.3);
+            ts.mat.color.setHex(prog < 0.3 ? 0xffffff : 0x60a5fa);
+          } else {
+            ts.mat.opacity = 0;
+          }
         });
       }
 
@@ -1128,6 +1205,7 @@ export default function JetEngine({ theme = 'dark' }) {
       cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
+      glowTexture.dispose();
       renderer.dispose();
       if (renderer.domElement && renderer.domElement.parentNode) {
         renderer.domElement.parentNode.removeChild(renderer.domElement);

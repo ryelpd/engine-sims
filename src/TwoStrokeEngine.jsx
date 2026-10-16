@@ -886,30 +886,82 @@ export default function TwoStrokeEngine({ theme = 'dark' }) {
     exhaustSystemGroup.add(pulseWaveMesh);
 
     // =========================================================
-    // F. SWIRLING FUEL-AIR-OIL MIXTURE & SCHNÜRLE LOOP SCAVENGING PARTICLES
+    // F. VOLUMETRIC FUEL-AIR-OIL & SCHNÜRLE LOOP SCAVENGING SPRITE SYSTEM
     // =========================================================
     const gasParticlesGroup = new THREE.Group();
     engineRoot.add(gasParticlesGroup);
 
-    const particleCount = 130;
-    const particleGeo = new THREE.SphereGeometry(0.055, 8, 8);
+    const createSoftGlowTexture = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      grad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+      grad.addColorStop(0.18, 'rgba(255, 255, 255, 0.88)');
+      grad.addColorStop(0.48, 'rgba(255, 255, 255, 0.32)');
+      grad.addColorStop(0.78, 'rgba(255, 255, 255, 0.08)');
+      grad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 128, 128);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.needsUpdate = true;
+      return tex;
+    };
+
+    const glowTexture = createSoftGlowTexture();
+
+    const particleCount = 140;
     const particles = [];
 
     for (let i = 0; i < particleCount; i++) {
-      const pMat = new THREE.MeshBasicMaterial({
-        color: 0x38bdf8, // Fresh blue air-fuel-oil 2-stroke mixture
+      const isHaze = i % 5 === 0;
+      const baseScale = isHaze ? (0.45 + Math.random() * 0.25) : (0.20 + Math.random() * 0.12);
+      const baseOpacity = isHaze ? 0.35 : 0.65;
+
+      const pMat = new THREE.SpriteMaterial({
+        map: glowTexture,
+        color: 0x38bdf8,
         transparent: true,
-        opacity: 0.85
+        opacity: baseOpacity,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
       });
-      const pMesh = new THREE.Mesh(particleGeo, pMat);
-      gasParticlesGroup.add(pMesh);
+      const sprite = new THREE.Sprite(pMat);
+      sprite.scale.set(baseScale, baseScale, 1);
+      gasParticlesGroup.add(sprite);
+
       particles.push({
-        mesh: pMesh,
+        sprite,
         mat: pMat,
         phase: Math.random(),
-        radiusFrac: 0.2 + Math.random() * 0.75,
+        radiusFrac: 0.15 + Math.random() * 0.78,
         angleOffset: Math.random() * Math.PI * 2,
-        heightFrac: Math.random()
+        heightFrac: Math.random(),
+        baseScale,
+        baseOpacity,
+        isHaze
+      });
+    }
+
+    // Dynamic Spark Embers spraying during power stroke ignition
+    const sparkEmbers = [];
+    for (let i = 0; i < 20; i++) {
+      const emberMat = new THREE.SpriteMaterial({
+        map: glowTexture,
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      const emberSprite = new THREE.Sprite(emberMat);
+      gasParticlesGroup.add(emberSprite);
+      sparkEmbers.push({
+        sprite: emberSprite,
+        mat: emberMat,
+        seed: Math.random() * Math.PI * 2,
+        spd: 0.8 + Math.random() * 1.5
       });
     }
 
@@ -1157,7 +1209,7 @@ export default function TwoStrokeEngine({ theme = 'dark' }) {
         pulseWaveMat.opacity = 0;
       }
 
-      // 8. 2-Stroke Loop Scavenging & Exhaust Gas Particles
+      // 8. 2-Stroke Loop Scavenging & Exhaust Gas Sprites
       const flowSpeed = Math.max(0.4, params.rpm / 240);
       particles.forEach((p, idx) => {
         if (params.isPlaying) {
@@ -1170,44 +1222,71 @@ export default function TwoStrokeEngine({ theme = 'dark' }) {
           p.mat.color.setHex(0x38bdf8);
           if (idx % 2 === 0) {
             const pt = sampleCurve(carbCurve, t);
-            p.mesh.position.set(
+            p.sprite.position.set(
               pt.x + Math.sin(t * 12 + idx) * 0.08,
               pt.y + Math.cos(t * 10 + idx) * 0.08,
               pt.z
             );
-            p.mat.opacity = 0.85;
+            p.mat.opacity = p.baseOpacity * 0.95 * Math.sin(t * Math.PI);
           } else {
             // Swirling in lower crankcase around stuffer webs
             const ang = p.angleOffset + t * 6.5;
             const r = p.radiusFrac * 1.1;
-            p.mesh.position.set(Math.cos(ang) * r, Math.sin(ang) * r, -0.2 + (idx % 3) * 0.2);
-            p.mat.opacity = 0.65;
+            p.sprite.position.set(Math.cos(ang) * r, Math.sin(ang) * r, -0.2 + (idx % 3) * 0.2);
+            p.mat.opacity = p.baseOpacity * 0.85;
           }
-        } else if (isTransferPortOpen && idx < 50) {
+          p.sprite.scale.set(p.baseScale, p.baseScale, 1);
+        } else if (isTransferPortOpen && idx < 55) {
           // Loop Scavenging: Shoots UP transfer channels into cylinder towards head dome!
           p.mat.color.setHex(0x67e8f9);
           const curveToUse = idx % 2 === 0 ? leftTransferCurve : rightTransferCurve;
           const pt = sampleCurve(curveToUse, t);
-          p.mesh.position.set(pt.x, pt.y, pt.z);
-          p.mat.opacity = 0.95;
-        } else if (isExhaustPortOpen && idx >= 50 && idx < 95) {
+          p.sprite.position.set(pt.x, pt.y, pt.z);
+          p.mat.opacity = p.baseOpacity * 1.15;
+          const s = p.baseScale * 1.15;
+          p.sprite.scale.set(s, s, 1);
+        } else if (isExhaustPortOpen && idx >= 55 && idx < 105) {
           // Burnt exhaust gas exiting through the tuned expansion chamber
           p.mat.color.setHex(0xf97316);
           const pt = sampleCurve(pipeCurve, t);
-          p.mesh.position.set(
+          p.sprite.position.set(
             pt.x + Math.sin(t * 15 + idx) * 0.06,
             pt.y + Math.cos(t * 12 + idx) * 0.06,
             pt.z
           );
-          p.mat.opacity = 0.82;
+          p.mat.opacity = p.baseOpacity * Math.max(0.15, 1 - t * 0.7);
+          const s = p.baseScale * (1.0 + t * 0.8);
+          p.sprite.scale.set(s, s, 1);
         } else {
           // Swirling gas in upper cylinder volume
           const swirlAng = p.angleOffset + t * 4.5;
           const rad = p.radiusFrac * (pistonRadius * 0.85);
           const y = pistonTopY + 0.12 + p.heightFrac * Math.max(0.15, deckY - pistonTopY);
-          p.mesh.position.set(Math.cos(swirlAng) * rad, y, Math.sin(swirlAng) * rad);
+          p.sprite.position.set(Math.cos(swirlAng) * rad, y, Math.sin(swirlAng) * rad);
           p.mat.color.setHex(deg360 < 110 ? 0xff5500 : 0x94a3b8);
-          p.mat.opacity = 0.72;
+          p.mat.opacity = p.baseOpacity * (deg360 < 110 ? 1.2 : 0.8);
+          const s = p.baseScale * (deg360 < 110 ? 1.3 : 1.0);
+          p.sprite.scale.set(s, s, 1);
+        }
+      });
+
+      // Update Spark Plug Embers during Power Stroke
+      const sparkActive = deg360 < 75 ? Math.sin((deg360 / 75) * Math.PI) : 0;
+      sparkEmbers.forEach((se) => {
+        if (sparkActive > 0.05) {
+          const prog = ((now * 0.003 * se.spd + se.seed) % 1.0);
+          const sprayAng = (se.seed - 0.5) * 1.6;
+          const dist = prog * 0.85;
+          const ex = Math.sin(sprayAng) * dist;
+          const ey = 0.45 - Math.cos(sprayAng) * dist;
+          const ez = Math.sin(se.seed * 4) * 0.35 * prog;
+          se.sprite.position.set(ex, ey, ez);
+          const s = (0.14 + (1 - prog) * 0.18) * sparkActive;
+          se.sprite.scale.set(s, s, 1);
+          se.mat.opacity = sparkActive * (1 - prog) * 0.95;
+          se.mat.color.setHex(prog < 0.3 ? 0xffffff : 0xfbbf24);
+        } else {
+          se.mat.opacity = 0;
         }
       });
 
@@ -1241,6 +1320,7 @@ export default function TwoStrokeEngine({ theme = 'dark' }) {
       window.removeEventListener('pointerup', onPointerUp);
       domElem.removeEventListener('wheel', onWheel);
       domElem.removeEventListener('contextmenu', onContextMenu);
+      glowTexture.dispose();
       renderer.dispose();
     };
   }, []);

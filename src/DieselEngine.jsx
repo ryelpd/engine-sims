@@ -1081,30 +1081,83 @@ export default function DieselEngine({ theme = 'dark' }) {
     headHousingGroup.add(exhaustRunner);
 
     // =========================================================
-    // G. SWIRLING AIR, ADIABATIC HEAT & EXHAUST PARTICLE SYSTEM
+    // G. VOLUMETRIC AIR, ADIABATIC HEAT & FUEL INJECTION SPRITE SYSTEM
     // =========================================================
     const gasParticlesGroup = new THREE.Group();
     engineRoot.add(gasParticlesGroup);
 
-    const particleCount = 135;
-    const particleGeo = new THREE.SphereGeometry(0.058, 8, 8);
+    const createSoftGlowTexture = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      grad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+      grad.addColorStop(0.18, 'rgba(255, 255, 255, 0.88)');
+      grad.addColorStop(0.48, 'rgba(255, 255, 255, 0.32)');
+      grad.addColorStop(0.78, 'rgba(255, 255, 255, 0.08)');
+      grad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 128, 128);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.needsUpdate = true;
+      return tex;
+    };
+
+    const glowTexture = createSoftGlowTexture();
+
+    const particleCount = 145;
     const particles = [];
 
     for (let i = 0; i < particleCount; i++) {
-      const pMat = new THREE.MeshBasicMaterial({
+      const isHaze = i % 5 === 0;
+      const baseScale = isHaze ? (0.50 + Math.random() * 0.28) : (0.22 + Math.random() * 0.14);
+      const baseOpacity = isHaze ? 0.36 : 0.68;
+
+      const pMat = new THREE.SpriteMaterial({
+        map: glowTexture,
         color: 0x38bdf8,
         transparent: true,
-        opacity: 0.85
+        opacity: baseOpacity,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
       });
-      const pMesh = new THREE.Mesh(particleGeo, pMat);
-      gasParticlesGroup.add(pMesh);
+      const sprite = new THREE.Sprite(pMat);
+      sprite.scale.set(baseScale, baseScale, 1);
+      gasParticlesGroup.add(sprite);
+
       particles.push({
-        mesh: pMesh,
+        sprite,
         mat: pMat,
         phase: Math.random(),
-        radiusFrac: 0.18 + Math.random() * 0.72,
+        radiusFrac: 0.15 + Math.random() * 0.75,
         angleOffset: Math.random() * Math.PI * 2,
-        heightFrac: Math.random()
+        heightFrac: Math.random(),
+        baseScale,
+        baseOpacity,
+        isHaze
+      });
+    }
+
+    // High-Pressure Common-Rail Fuel Spray Droplets into the Omega Toroidal Bowl
+    const fuelSprayDroplets = [];
+    for (let i = 0; i < 24; i++) {
+      const dropMat = new THREE.SpriteMaterial({
+        map: glowTexture,
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      const dropSprite = new THREE.Sprite(dropMat);
+      gasParticlesGroup.add(dropSprite);
+      fuelSprayDroplets.push({
+        sprite: dropSprite,
+        mat: dropMat,
+        coneAngle: (i % 6) * ((Math.PI * 2) / 6),
+        seed: Math.random() * Math.PI * 2,
+        spd: 1.2 + Math.random() * 1.6
       });
     }
 
@@ -1452,7 +1505,7 @@ export default function DieselEngine({ theme = 'dark' }) {
         simTorque = 135;
       }
 
-      // 8. Update Swirling Air, Fuel Droplets & Exhaust Gas Particles
+      // 8. Update Swirling Air, Fuel Droplets & Exhaust Gas Sprites
       const flowSpeed = Math.max(0.35, params.rpm / 160);
       particles.forEach((p, idx) => {
         if (params.isPlaying) {
@@ -1465,19 +1518,20 @@ export default function DieselEngine({ theme = 'dark' }) {
           p.mat.color.setHex(0x38bdf8); // Pure boosted air (Cyan-Blue)
           if (idx % 2 === 0) {
             const pt = sampleCurve(intakeCurve, t);
-            p.mesh.position.set(
+            p.sprite.position.set(
               pt.x,
               pt.y + Math.sin(t * 10 + idx) * 0.08,
               pt.z + Math.cos(t * 8 + idx) * 0.08
             );
-            p.mat.opacity = 0.82 * Math.sin(t * Math.PI);
+            p.mat.opacity = p.baseOpacity * Math.sin(t * Math.PI);
           } else {
             const swirlAngle = p.angleOffset + deg720 * 0.055 + t * 5.0;
             const r = p.radiusFrac * (pistonRadius * 0.82);
             const y = deckY - 0.15 - t * (deckY - pistonTopY - 0.15);
-            p.mesh.position.set(Math.cos(swirlAngle) * r, y, Math.sin(swirlAngle) * r);
-            p.mat.opacity = 0.72;
+            p.sprite.position.set(Math.cos(swirlAngle) * r, y, Math.sin(swirlAngle) * r);
+            p.mat.opacity = p.baseOpacity * 0.88;
           }
+          p.sprite.scale.set(p.baseScale, p.baseScale, 1);
         } else if (deg720 < 360) {
           // Stroke 2: Adiabatic Compression into the Piston's Omega (ω) Toroidal Bowl
           const compProg = (deg720 - 180) / 180;
@@ -1487,13 +1541,14 @@ export default function DieselEngine({ theme = 'dark' }) {
             compProg
           );
           const swirlAngle = p.angleOffset + compProg * 9.0; // Intense swirl inside Omega bowl
-          // As piston nears TDC, particles pack tightly into the Omega bowl radius (0.55)
           const maxR = THREE.MathUtils.lerp(pistonRadius * 0.82, 0.54, compProg);
           const r = p.radiusFrac * maxR;
           const bowlBottomY = pistonY + 0.22;
           const y = bowlBottomY + p.heightFrac * Math.max(0.18, deckY - bowlBottomY - 0.08);
-          p.mesh.position.set(Math.cos(swirlAngle) * r, y, Math.sin(swirlAngle) * r);
-          p.mat.opacity = 0.65 + compProg * 0.3;
+          p.sprite.position.set(Math.cos(swirlAngle) * r, y, Math.sin(swirlAngle) * r);
+          p.mat.opacity = (p.baseOpacity * 0.9) + compProg * 0.35;
+          const s = p.baseScale * (1.0 - compProg * 0.25);
+          p.sprite.scale.set(s, s, 1);
         } else if (deg720 < 540) {
           // Stroke 3: Auto-Ignition Toroidal Vortex Expansion
           const pwrProg = (deg720 - 360) / 180;
@@ -1506,26 +1561,54 @@ export default function DieselEngine({ theme = 'dark' }) {
           const r = p.radiusFrac * THREE.MathUtils.lerp(0.55, pistonRadius * 0.86, pwrProg);
           const bowlBottomY = pistonY + 0.24;
           const y = bowlBottomY + p.heightFrac * Math.max(0.2, deckY - bowlBottomY - 0.1);
-          p.mesh.position.set(Math.cos(swirlAngle) * r, y, Math.sin(swirlAngle) * r);
-          p.mat.opacity = Math.max(0.25, 0.95 - pwrProg * 0.55);
+          p.sprite.position.set(Math.cos(swirlAngle) * r, y, Math.sin(swirlAngle) * r);
+          p.mat.opacity = Math.max(0.15, (p.baseOpacity * 1.25) - pwrProg * 0.55);
+          const s = p.baseScale * (1.35 - pwrProg * 0.4);
+          p.sprite.scale.set(s, s, 1);
         } else {
           // Stroke 4: Diesel Exhaust Expulsion out Right Runner
           p.mat.color.setHex(0x94a3b8);
           if (idx % 2 === 0) {
             const pt = sampleCurve(exhaustCurve, t);
-            p.mesh.position.set(
+            p.sprite.position.set(
               pt.x,
               pt.y + Math.sin(t * 10 + idx) * 0.08,
               pt.z + Math.cos(t * 8 + idx) * 0.08
             );
-            p.mat.opacity = 0.82 * Math.sin(t * Math.PI);
+            p.mat.opacity = p.baseOpacity * 0.85 * Math.sin(t * Math.PI);
           } else {
             const swirlAngle = p.angleOffset + t * 3.0;
             const r = p.radiusFrac * (pistonRadius * 0.78);
             const y = pistonTopY + 0.12 + t * Math.max(0.15, deckY - pistonTopY - 0.15);
-            p.mesh.position.set(Math.cos(swirlAngle) * r, y, Math.sin(swirlAngle) * r);
-            p.mat.opacity = 0.58;
+            p.sprite.position.set(Math.cos(swirlAngle) * r, y, Math.sin(swirlAngle) * r);
+            p.mat.opacity = p.baseOpacity * 0.72;
           }
+          const s = p.baseScale * (1.0 + t * 0.4);
+          p.sprite.scale.set(s, s, 1);
+        }
+      });
+
+      // Update High-Pressure Common-Rail Fuel Injection Spray Droplets into Omega Bowl
+      const injectActive = (deg720 >= 350 && deg720 <= 410)
+        ? Math.sin(((deg720 - 350) / 60) * Math.PI)
+        : 0;
+
+      fuelSprayDroplets.forEach((fd) => {
+        if (injectActive > 0.05) {
+          const prog = ((now * 0.0035 * fd.spd + fd.seed) % 1.0);
+          const sprayDist = prog * 0.75;
+          const downwardSlope = -0.52;
+          const sx = Math.cos(fd.coneAngle) * sprayDist;
+          const sz = Math.sin(fd.coneAngle) * sprayDist;
+          const sy = deckY + 0.12 + sprayDist * downwardSlope;
+
+          fd.sprite.position.set(sx, sy, sz);
+          const s = (0.12 + (1 - prog) * 0.16) * injectActive;
+          fd.sprite.scale.set(s, s, 1);
+          fd.mat.opacity = injectActive * (1 - prog) * 0.92;
+          fd.mat.color.setHex(prog < 0.25 ? 0xffffff : 0xfde047);
+        } else {
+          fd.mat.opacity = 0;
         }
       });
 
@@ -1559,6 +1642,7 @@ export default function DieselEngine({ theme = 'dark' }) {
       window.removeEventListener('pointerup', onPointerUp);
       domElem.removeEventListener('wheel', onWheel);
       domElem.removeEventListener('contextmenu', onContextMenu);
+      glowTexture.dispose();
       renderer.dispose();
     };
   }, []);

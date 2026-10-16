@@ -392,6 +392,26 @@ export default function V8Engine({ theme = 'dark' }) {
     pulleyRing.position.set(0, 0, 4.15);
     crankshaftGroup.add(pulleyRing);
 
+    const createSoftGlowTexture = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      grad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+      grad.addColorStop(0.18, 'rgba(255, 255, 255, 0.88)');
+      grad.addColorStop(0.48, 'rgba(255, 255, 255, 0.32)');
+      grad.addColorStop(0.78, 'rgba(255, 255, 255, 0.08)');
+      grad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 128, 128);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.needsUpdate = true;
+      return tex;
+    };
+
+    const glowTexture = createSoftGlowTexture();
+
     const cylindersData = [];
     for (let i = 0; i < 4; i++) {
       const zCenter = zStart + i * ENGINE_SPECS.boreSpacing;
@@ -528,21 +548,54 @@ export default function V8Engine({ theme = 'dark' }) {
         linerMesh.position.set(0, r + L - 0.35, zPos);
         headGroup.add(linerMesh);
 
-        const flameMat = new THREE.MeshBasicMaterial({
+        // Volumetric Soft-Glow Flame Cluster & Ignition Embers
+        const flameMat = new THREE.SpriteMaterial({
+          map: glowTexture,
           color: 0xfb6514,
           transparent: true,
           opacity: 0.0,
           blending: THREE.AdditiveBlending,
           depthWrite: false
         });
-        const flameGeo = new THREE.CylinderGeometry(
-          ENGINE_SPECS.pistonRadius * 0.94,
-          ENGINE_SPECS.pistonRadius * 0.94,
-          0.35, 24
-        );
-        const flameMesh = new THREE.Mesh(flameGeo, flameMat);
-        flameMesh.position.set(0, maxStrokeDist + 0.18, zPos);
-        headGroup.add(flameMesh);
+        const flameSprite = new THREE.Sprite(flameMat);
+        flameSprite.position.set(0, maxStrokeDist + 0.18, zPos);
+        flameSprite.scale.set(1.4, 1.4, 1);
+        headGroup.add(flameSprite);
+
+        // Core White-Hot Flash Sprite
+        const coreMat = new THREE.SpriteMaterial({
+          map: glowTexture,
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.0,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+        const coreSprite = new THREE.Sprite(coreMat);
+        coreSprite.position.set(0, maxStrokeDist + 0.22, zPos);
+        coreSprite.scale.set(0.7, 0.7, 1);
+        headGroup.add(coreSprite);
+
+        // Spark Embers spraying during power stroke
+        const embers = [];
+        for (let em = 0; em < 8; em++) {
+          const emMat = new THREE.SpriteMaterial({
+            map: glowTexture,
+            color: 0xffd166,
+            transparent: true,
+            opacity: 0,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+          });
+          const emSprite = new THREE.Sprite(emMat);
+          headGroup.add(emSprite);
+          embers.push({
+            sprite: emSprite,
+            mat: emMat,
+            seed: Math.random() * Math.PI * 2,
+            spd: 1.0 + Math.random() * 1.5
+          });
+        }
 
         const createValveUnit = (xOffset, isIntake) => {
           const vGroup = new THREE.Group();
@@ -581,8 +634,11 @@ export default function V8Engine({ theme = 'dark' }) {
           rodGroup,
           headGroup,
           linerMesh,
-          flameMesh,
+          flameSprite,
           flameMat,
+          coreSprite,
+          coreMat,
+          embers,
           intakeValve,
           exhaustValve,
           firingAngle: ENGINE_SPECS.firingAngles[bankInfo.cylNumber - 1]
@@ -893,14 +949,44 @@ export default function V8Engine({ theme = 'dark' }) {
         let flameOpacity = 0;
         if (phase < 0.65 * Math.PI) {
           const norm = 1 - phase / (0.65 * Math.PI);
-          flameOpacity = Math.pow(norm, 1.6) * 0.92;
+          flameOpacity = Math.pow(norm, 1.4) * 0.95;
           cyl.flameMat.color.setHSL(0.05 + norm * 0.08, 1.0, 0.5 + norm * 0.3);
+          const s = 1.2 + norm * 0.5;
+          cyl.flameSprite.scale.set(s, s, 1);
+
+          cyl.coreMat.opacity = combustionOn ? Math.pow(norm, 2.2) * 0.95 : 0;
+          const cs = 0.5 + norm * 0.4;
+          cyl.coreSprite.scale.set(cs, cs, 1);
+
           if (flameOpacity > highestCombustionIntensity) {
             highestCombustionIntensity = flameOpacity;
             currentFiringCyl = cyl.cylNumber;
           }
+        } else {
+          cyl.coreMat.opacity = 0;
         }
         cyl.flameMat.opacity = combustionOn ? flameOpacity : 0;
+
+        // Animate spark embers during power flash
+        const emberActive = (combustionOn && flameOpacity > 0.12) ? flameOpacity : 0;
+        cyl.embers.forEach((em) => {
+          if (emberActive > 0.05) {
+            const prog = ((now * 0.0035 * em.spd + em.seed) % 1.0);
+            const sprayAng = (em.seed - 0.5) * 1.5;
+            const dist = prog * 0.68;
+            const ex = Math.sin(sprayAng) * dist;
+            const ey = r + L + ENGINE_SPECS.pistonHeight / 2 + 0.55 - Math.cos(sprayAng) * dist;
+            const ez = cyl.zPos + Math.sin(em.seed * 3) * 0.25 * prog;
+
+            em.sprite.position.set(ex, ey, ez);
+            const es = (0.10 + (1 - prog) * 0.14) * emberActive;
+            em.sprite.scale.set(es, es, 1);
+            em.mat.opacity = emberActive * (1 - prog) * 0.92;
+            em.mat.color.setHex(prog < 0.25 ? 0xffffff : 0xfde047);
+          } else {
+            em.mat.opacity = 0;
+          }
+        });
 
         const maxValveLift = 0.22;
         if (phase >= Math.PI && phase < 2 * Math.PI) {
@@ -959,6 +1045,7 @@ export default function V8Engine({ theme = 'dark' }) {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
       resizeObserver.disconnect();
+      glowTexture.dispose();
       renderer.dispose();
       if (renderer.domElement && renderer.domElement.parentNode) {
         renderer.domElement.parentNode.removeChild(renderer.domElement);
