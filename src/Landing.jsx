@@ -4,6 +4,13 @@ import './landing.css';
 
 const machines = [
   {
+    path: '/inline-5',
+    name: 'Inline-5 2.5T',
+    spec: '1-2-4-5-3',
+    image: '/lab/generated/four-stroke.png',
+    line: 'Five cylinders in a row, 144° crank intervals, 20 DOHC valves, and a single-scroll turbocharger.'
+  },
+  {
     path: '/rotary',
     name: 'Rotary',
     spec: '1080°',
