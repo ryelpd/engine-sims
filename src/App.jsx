@@ -9,10 +9,12 @@ import RotaryEngine from './RotaryEngine.jsx';
 import Inline5Engine from './Inline5Engine.jsx';
 import GearboxSim from './GearboxSim.jsx';
 import CvtSim from './CvtSim.jsx';
+import DifferentialSim from './DifferentialSim.jsx';
 import Landing from './Landing.jsx';
-import { Cpu, Wind, Flame, Droplets, Repeat, Triangle, Gauge, Cog, Infinity as InfinityIcon, Sun, Moon } from 'lucide-react';
+import { Cpu, Wind, Flame, Droplets, Repeat, Triangle, Gauge, Cog, Infinity as InfinityIcon, GitFork, Sun, Moon } from 'lucide-react';
 
 const engines = [
+  { path: '/differential', label: 'Differential & LSD', icon: GitFork, Component: DifferentialSim },
   { path: '/cvt', label: 'Steel CVT', icon: InfinityIcon, Component: CvtSim },
   { path: '/gearbox', label: 'Gearbox', icon: Cog, Component: GearboxSim },
   { path: '/inline-5', label: 'Inline-5 2.5T', icon: Gauge, Component: Inline5Engine },

@@ -4,6 +4,13 @@ import './landing.css';
 
 const machines = [
   {
+    path: '/differential',
+    name: 'Differential & LSD',
+    spec: '3.45 : 1',
+    image: '/lab/generated/v8.png',
+    line: 'Hypoid ring and pinion, epicyclic spider bevel gears, and multi-plate clutch-pack limited-slip differential.'
+  },
+  {
     path: '/cvt',
     name: 'Steel CVT',
     spec: '2.60 - 0.45',
