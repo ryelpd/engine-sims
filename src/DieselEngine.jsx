@@ -1194,6 +1194,13 @@ export default function DieselEngine({ theme = 'dark' }) {
     // =========================================================
     // I. ANIMATION & DIESEL COMPRESSION-IGNITION KINEMATICS LOOP
     // =========================================================
+    // Safe Curve Sampler to guarantee t is within [0.0001, 0.9999] and never negative or NaN
+    const sampleCurve = (curve, u) => {
+      if (!curve) return new THREE.Vector3(0, 0, 0);
+      const safeU = Math.max(0.0001, Math.min(0.9999, isNaN(u) ? 0.5 : (((u % 1.0) + 1.0) % 1.0)));
+      return curve.getPoint(safeU);
+    };
+
     let reqId;
     let lastTime = performance.now();
     let uiTimer = 0;
@@ -1201,8 +1208,9 @@ export default function DieselEngine({ theme = 'dark' }) {
 
     const animate = (now) => {
       reqId = requestAnimationFrame(animate);
-      const dt = Math.min((now - lastTime) / 1000, 0.1);
-      lastTime = now;
+      const currentTime = typeof now === 'number' && !isNaN(now) ? now : performance.now();
+      const dt = Math.max(0.0001, Math.min(Math.abs(currentTime - lastTime) / 1000, 0.1));
+      lastTime = currentTime;
 
       const params = simParams.current;
 
@@ -1456,16 +1464,16 @@ export default function DieselEngine({ theme = 'dark' }) {
       // 8. Update Swirling Air, Fuel Droplets & Exhaust Gas Particles
       const flowSpeed = Math.max(0.35, params.rpm / 160);
       particles.forEach((p, idx) => {
-        if ( params.isPlaying ) {
-          p.phase = (p.phase + dt * 0.9 * flowSpeed) % 1.0;
+        if (params.isPlaying) {
+          p.phase = (((p.phase + dt * 0.9 * flowSpeed) % 1.0) + 1.0) % 1.0;
         }
-        const t = p.phase;
+        const t = Math.max(0.0001, Math.min(0.9999, isNaN(p.phase) ? 0.5 : p.phase));
 
         if (deg720 < 180) {
           // Stroke 1: Pure Air Intake from Left Manifold + High-Swirl Vortex into Cylinder
           p.mat.color.setHex(0x38bdf8); // Pure boosted air (Cyan-Blue)
           if (idx % 2 === 0) {
-            const pt = intakeCurve.getPoint(t);
+            const pt = sampleCurve(intakeCurve, t);
             p.mesh.position.set(
               pt.x,
               pt.y + Math.sin(t * 10 + idx) * 0.08,
@@ -1513,7 +1521,7 @@ export default function DieselEngine({ theme = 'dark' }) {
           // Stroke 4: Diesel Exhaust Expulsion out Right Runner
           p.mat.color.setHex(0x94a3b8);
           if (idx % 2 === 0) {
-            const pt = exhaustCurve.getPoint(t);
+            const pt = sampleCurve(exhaustCurve, t);
             p.mesh.position.set(
               pt.x,
               pt.y + Math.sin(t * 10 + idx) * 0.08,

@@ -1009,10 +1009,18 @@ export default function FourStrokeEngine({ theme = 'dark' }) {
       oilPanBottom.position.y = -2.05 - exp * 0.95;
     };
 
+    // Safe Curve Sampler to guarantee t is within [0.0001, 0.9999] and never negative or NaN
+    const sampleCurve = (curve, u) => {
+      if (!curve) return new THREE.Vector3(0, 0, 0);
+      const safeU = Math.max(0.0001, Math.min(0.9999, isNaN(u) ? 0.5 : (((u % 1.0) + 1.0) % 1.0)));
+      return curve.getPoint(safeU);
+    };
+
     const animate = (now) => {
       animationFrameId = requestAnimationFrame(animate);
-      const dt = Math.min((now - lastTime) / 1000, 0.1);
-      lastTime = now;
+      const currentTime = typeof now === 'number' && !isNaN(now) ? now : performance.now();
+      const dt = Math.max(0.0001, Math.min(Math.abs(currentTime - lastTime) / 1000, 0.1));
+      lastTime = currentTime;
 
       const {
         rpm: currentRpm,
@@ -1148,13 +1156,14 @@ export default function FourStrokeEngine({ theme = 'dark' }) {
       gasParticles.forEach((p, idx) => {
         if (playing) {
           p.theta += p.swirlSpeed * dt;
-          p.streamPhase = (p.streamPhase + dt * 1.8) % 1.0;
+          p.streamPhase = (((p.streamPhase + dt * 1.8) % 1.0) + 1.0) % 1.0;
         }
+
+        const t = Math.max(0.0001, Math.min(0.9999, isNaN(p.streamPhase) ? 0.5 : p.streamPhase));
 
         if (strokeIdx === 0 && idx < 40) {
           // Intake manifold fuel-air spray rushing into cylinder
-          const t = p.streamPhase;
-          const pt = intakeCurve.getPoint(1.0 - t);
+          const pt = sampleCurve(intakeCurve, 1.0 - t);
           p.mesh.position.set(
             pt.x + Math.cos(p.theta) * 0.16,
             pt.y + Math.sin(p.theta) * 0.16,
@@ -1164,8 +1173,7 @@ export default function FourStrokeEngine({ theme = 'dark' }) {
           p.mat.opacity = 0.85;
         } else if (strokeIdx === 3 && idx < 40) {
           // Exhaust port burnt gas rushing out of cylinder
-          const t = p.streamPhase;
-          const pt = exhaustCurve.getPoint(t);
+          const pt = sampleCurve(exhaustCurve, t);
           p.mesh.position.set(
             pt.x + Math.cos(p.theta) * 0.18,
             pt.y + Math.sin(p.theta) * 0.18,
