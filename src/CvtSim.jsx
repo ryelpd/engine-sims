@@ -36,30 +36,115 @@ function SquareRange({ min, max, step, value, label, onChange }) {
 }
 
 // ============================================================================
-// CONTINUOUSLY VARIABLE TRANSMISSION (CVT) SPECIFICATION & KINEMATICS
+// CONTINUOUSLY VARIABLE TRANSMISSION (CVT) SPECIFICATION & EXACT KINEMATICS
 // ============================================================================
-// Transverse layout with two parallel shafts along Z axis:
-//   Primary Pulley (Input / Drive) at (x = -1.35, y = 0.0)
-//   Secondary Pulley (Output / Driven) at (x = +1.35, y = 0.0)
-//   Center-to-Center Distance C = 2.70
-const SHAFT_PULLEY_DIST = 2.70;
-const PRIMARY_X = -1.35;
-const SECONDARY_X = 1.35;
+// Two parallel pulley shafts oriented along the Z-axis:
+//   Primary Pulley (Input / Drive) centered at (x = -1.65, y = 0.25)
+//   Secondary Pulley (Output / Driven) centered at (x = +1.65, y = 0.25)
+//   Center-to-Center Distance C = 3.30 units
+const PRIMARY_X = -1.65;
+const SECONDARY_X = 1.65;
+const PULLEY_Y = 0.25;
+const SHAFT_DIST = SECONDARY_X - PRIMARY_X; // 3.30
 
-// Cone angle of sheaves is 11 degrees
-const CONE_ANGLE = 11 * (Math.PI / 180);
-const TAN_CONE = Math.tan(CONE_ANGLE);
+// Sheave V-Groove Geometry:
+//   Inner hub radius = 0.36, Outer rim radius = 1.66
+//   Conical V-slope: as radius r increases from rInner to rOuter,
+//   each sheave's conical face recedes axially from z = 0 by (r - rInner) * SHEAVE_SLOPE.
+//   So closing the sheaves together forces the V-belt OUTWARD to a larger radius!
+const SHEAVE_INNER_R = 0.36;
+const SHEAVE_OUTER_R = 1.66;
+const SHEAVE_SLOPE = 0.28; // V-cone slope dz/dr
+const BELT_HALF_WIDTH = 0.22; // Half-width of the trapezoidal steel push-block at pitch line
 
-// Virtual 7-Speed Stepped Ratios for Sport Mode
+// Virtual 7-Speed Stepped Ratios for Sport Mode (S)
 const VIRTUAL_7_SPEEDS = [
-  { gear: 1, ratio: 2.55, label: 'Gear 1 (2.55:1)' },
-  { gear: 2, ratio: 1.82, label: 'Gear 2 (1.82:1)' },
-  { gear: 3, ratio: 1.35, label: 'Gear 3 (1.35:1)' },
+  { gear: 1, ratio: 2.50, label: 'Gear 1 (2.50:1)' },
+  { gear: 2, ratio: 1.85, label: 'Gear 2 (1.85:1)' },
+  { gear: 3, ratio: 1.40, label: 'Gear 3 (1.40:1)' },
   { gear: 4, ratio: 1.00, label: 'Gear 4 (1.00:1)' },
   { gear: 5, ratio: 0.78, label: 'Gear 5 (0.78:1)' },
-  { gear: 6, ratio: 0.62, label: 'Gear 6 (0.62:1)' },
+  { gear: 6, ratio: 0.60, label: 'Gear 6 (0.60:1)' },
   { gear: 7, ratio: 0.45, label: 'Gear 7 (0.45:1)' }
 ];
+
+// Helper to create 3D involute toothed gear geometry oriented in X-Y plane (axis along Z)
+function createToothedGearGeo({
+  pitchRadius,
+  teethCount,
+  faceWidth = 0.32,
+  boreRadius = 0.22,
+  helicalAngle = 0.12,
+  hasLighteningHoles = true
+}) {
+  const shape = new THREE.Shape();
+  const addendum = Math.min(0.075, (pitchRadius * Math.PI) / (teethCount * 2.2));
+  const dedendum = addendum * 1.15;
+  const outerR = pitchRadius + addendum;
+  const rootR = Math.max(boreRadius + 0.06, pitchRadius - dedendum);
+
+  const step = (Math.PI * 2) / teethCount;
+  for (let i = 0; i < teethCount; i++) {
+    const a0 = i * step;
+    const a1 = a0 + step * 0.18;
+    const a2 = a0 + step * 0.32;
+    const a3 = a0 + step * 0.54;
+    const a4 = a0 + step * 0.68;
+
+    const x0 = Math.cos(a0) * rootR;
+    const y0 = Math.sin(a0) * rootR;
+    if (i === 0) shape.moveTo(x0, y0);
+    else shape.lineTo(x0, y0);
+
+    shape.lineTo(Math.cos(a1) * rootR, Math.sin(a1) * rootR);
+    shape.lineTo(Math.cos(a2) * outerR, Math.sin(a2) * outerR);
+    shape.lineTo(Math.cos(a3) * outerR, Math.sin(a3) * outerR);
+    shape.lineTo(Math.cos(a4) * rootR, Math.sin(a4) * rootR);
+  }
+  shape.closePath();
+
+  const borePath = new THREE.Path();
+  borePath.absarc(0, 0, boreRadius, 0, Math.PI * 2, true);
+  shape.holes.push(borePath);
+
+  if (hasLighteningHoles && rootR - boreRadius > 0.38) {
+    const orbitR = (rootR + boreRadius) * 0.52;
+    const holeR = Math.min(0.15, (rootR - boreRadius) * 0.22);
+    for (let h = 0; h < 6; h++) {
+      const ha = (h / 6) * Math.PI * 2;
+      const hp = new THREE.Path();
+      hp.absarc(Math.cos(ha) * orbitR, Math.sin(ha) * orbitR, holeR, 0, Math.PI * 2, true);
+      shape.holes.push(hp);
+    }
+  }
+
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: faceWidth,
+    steps: 2,
+    bevelEnabled: true,
+    bevelSegments: 2,
+    bevelSize: 0.012,
+    bevelThickness: 0.012
+  });
+  geo.translate(0, 0, -faceWidth * 0.5);
+
+  if (helicalAngle !== 0) {
+    const pos = geo.attributes.position;
+    for (let k = 0; k < pos.count; k++) {
+      const vx = pos.getX(k);
+      const vy = pos.getY(k);
+      const vz = pos.getZ(k);
+      const twist = (vz / faceWidth) * helicalAngle;
+      const cosT = Math.cos(twist);
+      const sinT = Math.sin(twist);
+      pos.setX(k, vx * cosT - vy * sinT);
+      pos.setY(k, vx * sinT + vy * cosT);
+    }
+    pos.needsUpdate = true;
+    geo.computeVertexNormals();
+  }
+  return geo;
+}
 
 export default function CvtSim({ theme = 'dark' }) {
   const mountRef = useRef(null);
@@ -69,13 +154,13 @@ export default function CvtSim({ theme = 'dark' }) {
   const [engineRpm, setEngineRpm] = useState(2200);
   const [throttlePct, setThrottlePct] = useState(45);
   const [driveMode, setDriveMode] = useState('D'); // 'P', 'R', 'N', 'D', 'S'
-  const [cvtRatio, setCvtRatio] = useState(1.0); // 2.60 (Low) to 0.45 (Overdrive)
+  const [cvtRatio, setCvtRatio] = useState(1.45); // 2.50 (Low) to 0.45 (Overdrive)
   const [isVirtualMode, setIsVirtualMode] = useState(false);
-  const [virtualGear, setVirtualGear] = useState(4);
+  const [virtualGear, setVirtualGear] = useState(3);
 
   // Visual / Viewport Controls
   const [renderMode, setRenderMode] = useState('realistic');
-  const [casingOpacity, setCasingOpacity] = useState(0.24);
+  const [casingOpacity, setCasingOpacity] = useState(0.22);
   const [cutawayMode, setCutawayMode] = useState(true);
   const [exploded, setExploded] = useState(0);
   const [autoRotateCam, setAutoRotateCam] = useState(false);
@@ -83,20 +168,19 @@ export default function CvtSim({ theme = 'dark' }) {
   // Component Layers Visibility
   const [showCasing, setShowCasing] = useState(true);
   const [showSteelBelt, setShowSteelBelt] = useState(true);
-  const [showHydraulics, setShowHydraulics] = useState(true);
   const [showTorqueConverter, setShowTorqueConverter] = useState(true);
   const [showFinalDrive, setShowFinalDrive] = useState(true);
 
   // Live Telemetry Readouts
   const [telemetry, setTelemetry] = useState({
     inputRpm: 2200,
-    outputRpm: 2200,
-    actualRatio: 1.0,
-    outputTorqueNm: 250,
-    roadSpeedKmh: 68,
-    primaryRadius: 1.0,
-    secondaryRadius: 1.0,
-    clampPressureBar: 42
+    outputRpm: 1517,
+    actualRatio: 1.45,
+    outputTorqueNm: 342,
+    roadSpeedKmh: 52,
+    primaryDiameterMm: 138,
+    secondaryDiameterMm: 200,
+    clampPressureBar: 44
   });
 
   const simParams = useRef({
@@ -114,7 +198,6 @@ export default function CvtSim({ theme = 'dark' }) {
     autoRotateCam,
     showCasing,
     showSteelBelt,
-    showHydraulics,
     showTorqueConverter,
     showFinalDrive,
     theme
@@ -136,7 +219,6 @@ export default function CvtSim({ theme = 'dark' }) {
       autoRotateCam,
       showCasing,
       showSteelBelt,
-      showHydraulics,
       showTorqueConverter,
       showFinalDrive,
       theme
@@ -156,7 +238,6 @@ export default function CvtSim({ theme = 'dark' }) {
     autoRotateCam,
     showCasing,
     showSteelBelt,
-    showHydraulics,
     showTorqueConverter,
     showFinalDrive,
     theme
@@ -169,20 +250,20 @@ export default function CvtSim({ theme = 'dark' }) {
     if (!container) return;
 
     // ------------------------------------------------------------------------
-    // 1. THREE.JS SCENE, CAMERA, RENDERER & LIGHTING
+    // 1. THREE.JS SCENE, CAMERA, RENDERER & STUDIO LIGHTING
     // ------------------------------------------------------------------------
     const scene = new THREE.Scene();
     const isDarkTheme = simParams.current.theme === 'dark';
     scene.background = new THREE.Color(isDarkTheme ? 0x0b101b : 0xf1f5f9);
-    scene.fog = new THREE.FogExp2(isDarkTheme ? 0x0b101b : 0xf1f5f9, 0.016);
+    scene.fog = new THREE.FogExp2(isDarkTheme ? 0x0b101b : 0xf1f5f9, 0.015);
 
     const camera = new THREE.PerspectiveCamera(
-      42,
+      40,
       container.clientWidth / container.clientHeight,
       0.1,
       150
     );
-    camera.position.set(0.2, 5.2, 6.8);
+    camera.position.set(3.8, 3.6, 8.2);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -190,7 +271,7 @@ export default function CvtSim({ theme = 'dark' }) {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.25;
+    renderer.toneMappingExposure = 1.24;
 
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
@@ -198,104 +279,125 @@ export default function CvtSim({ theme = 'dark' }) {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
-    controls.target.set(0, 0, 0);
-    controls.minDistance = 3.5;
-    controls.maxDistance = 22.0;
+    controls.target.set(0, -0.15, 0.1);
+    controls.minDistance = 4.0;
+    controls.maxDistance = 24.0;
 
     cameraPresetRef.current = (viewType) => {
       if (viewType === 'iso') {
-        camera.position.set(0.2, 5.2, 6.8);
-        controls.target.set(0, 0, 0);
+        camera.position.set(3.8, 3.6, 8.2);
+        controls.target.set(0, -0.15, 0.1);
       } else if (viewType === 'front') {
-        camera.position.set(0, 0.2, 7.5);
-        controls.target.set(0, 0, 0);
+        camera.position.set(0, 0.1, 9.2);
+        controls.target.set(0, -0.15, 0);
       } else if (viewType === 'top') {
-        camera.position.set(0.01, 8.5, 0.01);
-        controls.target.set(0, 0, 0);
+        camera.position.set(0.01, 9.8, 0.1);
+        controls.target.set(0, -0.15, 0.1);
       } else if (viewType === 'side') {
-        camera.position.set(7.5, 0.2, 0);
-        controls.target.set(0, 0, 0);
+        camera.position.set(-8.8, 1.2, 0.1);
+        controls.target.set(0, -0.15, 0.1);
       }
       controls.update();
     };
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.78);
     scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xfff8ed, 2.3);
-    keyLight.position.set(7, 12, 9);
+    const keyLight = new THREE.DirectionalLight(0xfff8ed, 2.35);
+    keyLight.position.set(8, 13, 10);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
     keyLight.shadow.mapSize.height = 2048;
     scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0x38bdf8, 1.1);
-    fillLight.position.set(-8, -4, -6);
+    const fillLight = new THREE.DirectionalLight(0x38bdf8, 1.15);
+    fillLight.position.set(-9, 3, 6);
     scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0xf97316, 1.2);
-    rimLight.position.set(0, 6, -8);
+    const rimLight = new THREE.DirectionalLight(0xf97316, 1.25);
+    rimLight.position.set(0, -6, -9);
     scene.add(rimLight);
 
+    const beltGlowLight = new THREE.PointLight(0xf97316, 1.6, 6.0);
+    beltGlowLight.position.set(0, PULLEY_Y, 0);
+    scene.add(beltGlowLight);
+
     const gridHelper = new THREE.GridHelper(
-      24,
-      24,
+      26,
+      26,
       isDarkTheme ? 0x1e293b : 0xcbd5e1,
       isDarkTheme ? 0x131c2e : 0xe2e8f0
     );
-    gridHelper.position.y = -2.6;
+    gridHelper.position.y = -2.85;
     scene.add(gridHelper);
 
     // ------------------------------------------------------------------------
-    // 2. MATERIALS & SHADER DEFINITIONS
+    // 2. PBR MATERIALS & RENDER MODE TRACKING
     // ------------------------------------------------------------------------
     const realisticMats = {
       primarySheave: new THREE.MeshStandardMaterial({
-        color: 0x38bdf8,
-        metalness: 0.92,
-        roughness: 0.16
+        color: 0x0ea5e9,
+        metalness: 0.88,
+        roughness: 0.18
       }),
       secondarySheave: new THREE.MeshStandardMaterial({
         color: 0x10b981,
-        metalness: 0.92,
-        roughness: 0.16
+        metalness: 0.88,
+        roughness: 0.18
       }),
-      steelBeltBlock: new THREE.MeshStandardMaterial({
-        color: 0xf8fafc,
-        metalness: 0.96,
-        roughness: 0.14
-      }),
-      steelBand: new THREE.MeshStandardMaterial({
-        color: 0x94a3b8,
-        metalness: 0.90,
+      sheaveRib: new THREE.MeshStandardMaterial({
+        color: 0x334155,
+        metalness: 0.85,
         roughness: 0.25
       }),
+      steelBeltBlock: new THREE.MeshStandardMaterial({
+        color: 0xe2e8f0,
+        metalness: 0.94,
+        roughness: 0.16
+      }),
+      steelBand: new THREE.MeshStandardMaterial({
+        color: 0xf97316,
+        metalness: 0.88,
+        roughness: 0.20,
+        emissive: 0xea580c,
+        emissiveIntensity: 0.25
+      }),
       hydraulicChamber: new THREE.MeshStandardMaterial({
-        color: 0x0284c7,
-        metalness: 0.78,
-        roughness: 0.26
+        color: 0x1e293b,
+        metalness: 0.82,
+        roughness: 0.28
+      }),
+      hydraulicPiston: new THREE.MeshStandardMaterial({
+        color: 0xfbbf24,
+        metalness: 0.90,
+        roughness: 0.18
       }),
       torqueConverter: new THREE.MeshStandardMaterial({
-        color: 0xf59e0b,
-        metalness: 0.85,
-        roughness: 0.22
+        color: 0xd97706,
+        metalness: 0.84,
+        roughness: 0.24
       }),
       gears: new THREE.MeshStandardMaterial({
         color: 0xcbd5e1,
-        metalness: 0.88,
+        metalness: 0.90,
         roughness: 0.20
       }),
+      diffCage: new THREE.MeshStandardMaterial({
+        color: 0x475569,
+        metalness: 0.86,
+        roughness: 0.26
+      }),
       shaftSteel: new THREE.MeshStandardMaterial({
-        color: 0x64748b,
+        color: 0x94a3b8,
         metalness: 0.92,
-        roughness: 0.18
+        roughness: 0.16
       }),
       casing: new THREE.MeshPhysicalMaterial({
         color: 0x94a3b8,
         metalness: 0.32,
         roughness: 0.24,
         transparent: true,
-        opacity: 0.24,
+        opacity: 0.22,
         depthWrite: false,
         side: THREE.DoubleSide
       })
@@ -307,7 +409,7 @@ export default function CvtSim({ theme = 'dark' }) {
       metalness: 0.1,
       roughness: 0.6,
       transparent: true,
-      opacity: 0.24,
+      opacity: 0.22,
       depthWrite: false,
       side: THREE.DoubleSide
     });
@@ -348,129 +450,147 @@ export default function CvtSim({ theme = 'dark' }) {
     scene.add(cvtRoot);
 
     // ------------------------------------------------------------------------
-    // 3. VARIABLE CONICAL PULLEY SHEAVES & HYDRAULIC ACTUATORS
+    // 3. VARIABLE CONICAL PULLEY SHEAVES (ROTATED COAXIALLY ON Z-AXIS!)
     // ------------------------------------------------------------------------
-    // Helper to generate an authentic 11-degree conical sheave face
-    const createConicalSheaveGeo = (facingDir = 1) => {
-      // Points along radial profile from center bore out to outer rim
-      // facingDir = +1 means cone slopes towards +Z, -1 means slopes towards -Z
-      const innerR = 0.32;
-      const outerR = 1.62;
-      const coneHeight = (outerR - innerR) * TAN_CONE; // ~0.252
-      const backThickness = 0.14;
+    // Build a conical sheave whose axis of rotation is the Z-axis!
+    // side = -1 for Rear Sheave (located at -Z, conical V-face facing +Z)
+    // side = +1 for Front Sheave (located at +Z, conical V-face facing -Z)
+    // At r = SHEAVE_INNER_R, the conical face starts at local z = 0.
+    // As r increases to SHEAVE_OUTER_R, the conical face slopes away from the belt plane
+    // to local z = side * (SHEAVE_OUTER_R - SHEAVE_INNER_R) * SHEAVE_SLOPE.
+    const buildSheaveAssembly = (side, matType) => {
+      const holder = new THREE.Group();
+      const coneDrop = (SHEAVE_OUTER_R - SHEAVE_INNER_R) * SHEAVE_SLOPE; // ~0.364
+      const rimBack = coneDrop + 0.14;
+      const hubBack = coneDrop + 0.28;
 
-      const pts = [
-        new THREE.Vector2(innerR, 0),
-        new THREE.Vector2(outerR, coneHeight * facingDir),
-        new THREE.Vector2(outerR, (coneHeight + backThickness) * facingDir),
-        new THREE.Vector2(innerR, (coneHeight + backThickness) * facingDir)
+      // LatheGeometry revolves around Y-axis; we rotateX(Math.PI / 2) so Y becomes Z!
+      const lathePts = [
+        new THREE.Vector2(0.24, 0),
+        new THREE.Vector2(SHEAVE_INNER_R, 0),
+        new THREE.Vector2(SHEAVE_OUTER_R, side * coneDrop),
+        new THREE.Vector2(SHEAVE_OUTER_R, side * rimBack),
+        new THREE.Vector2(0.58, side * hubBack),
+        new THREE.Vector2(0.24, side * hubBack)
       ];
-      const latheGeo = new THREE.LatheGeometry(pts, 36);
-      return latheGeo;
+      const sheaveGeo = new THREE.LatheGeometry(lathePts, 44);
+      sheaveGeo.rotateX(Math.PI / 2);
+      const sheaveMesh = registerMesh(new THREE.Mesh(sheaveGeo), matType);
+      holder.add(sheaveMesh);
+
+      // Add 8 Radial Cooling / Stiffening Spokes on the back of the sheave so rotation is super clear!
+      const ribGeo = new THREE.BoxGeometry(SHEAVE_OUTER_R - 0.44, 0.07, 0.08);
+      for (let rIdx = 0; rIdx < 8; rIdx++) {
+        const ang = (rIdx / 8) * Math.PI * 2;
+        const rib = registerMesh(new THREE.Mesh(ribGeo), 'sheaveRib', false);
+        const midR = (SHEAVE_OUTER_R + 0.42) * 0.5;
+        rib.position.set(
+          Math.cos(ang) * midR,
+          Math.sin(ang) * midR,
+          side * (coneDrop + 0.14)
+        );
+        rib.rotation.z = ang;
+        holder.add(rib);
+      }
+
+      return holder;
     };
 
-    // A. PRIMARY PULLEY (Input / Drive) at x = PRIMARY_X (-1.35)
+    // A. PRIMARY PULLEY (Input / Drive) at (x = PRIMARY_X, y = PULLEY_Y, z = 0)
     const primaryGroup = new THREE.Group();
-    primaryGroup.position.set(PRIMARY_X, 0, 0);
+    primaryGroup.position.set(PRIMARY_X, PULLEY_Y, 0);
     cvtRoot.add(primaryGroup);
 
-    // Input Shaft
-    const pShaftGeo = new THREE.CylinderGeometry(0.24, 0.24, 3.8, 24);
+    // Splined Primary Shaft
+    const pShaftGeo = new THREE.CylinderGeometry(0.25, 0.25, 4.1, 24);
     pShaftGeo.rotateX(Math.PI / 2);
-    const pShaftMesh = registerMesh(new THREE.Mesh(pShaftGeo), 'shaftSteel');
-    primaryGroup.add(pShaftMesh);
+    primaryGroup.add(registerMesh(new THREE.Mesh(pShaftGeo), 'shaftSteel'));
 
-    // Primary Fixed Sheave (Stationary along Z at rear, facing forward +Z)
-    const pFixedGeo = createConicalSheaveGeo(1);
-    const pFixedMesh = registerMesh(new THREE.Mesh(pFixedGeo), 'primarySheave');
-    pFixedMesh.position.z = -0.38;
-    primaryGroup.add(pFixedMesh);
+    const pRearSheave = buildSheaveAssembly(-1, 'primarySheave');
+    const pFrontSheave = buildSheaveAssembly(1, 'primarySheave');
+    primaryGroup.add(pRearSheave, pFrontSheave);
 
-    // Primary Sliding Sheave Holder (Moves along Z via hydraulic pressure)
-    const pSlidingGroup = new THREE.Group();
-    primaryGroup.add(pSlidingGroup);
+    // Primary Hydraulic Clamping Cylinder & Golden Internal Piston (on Front +Z side)
+    const pHydCylinderGeo = new THREE.CylinderGeometry(1.06, 1.06, 0.48, 32, 1, true);
+    pHydCylinderGeo.rotateX(Math.PI / 2);
+    const pHydCylinderMesh = registerMesh(new THREE.Mesh(pHydCylinderGeo), 'hydraulicChamber');
+    pHydCylinderMesh.position.z = 0.82;
+    pFrontSheave.add(pHydCylinderMesh);
 
-    const pSlidingGeo = createConicalSheaveGeo(-1);
-    const pSlidingMesh = registerMesh(new THREE.Mesh(pSlidingGeo), 'primarySheave');
-    pSlidingGroup.add(pSlidingMesh);
+    const pHydPistonGeo = new THREE.CylinderGeometry(1.00, 1.00, 0.16, 32);
+    pHydPistonGeo.rotateX(Math.PI / 2);
+    const pHydPistonMesh = registerMesh(new THREE.Mesh(pHydPistonGeo), 'hydraulicPiston');
+    pHydPistonMesh.position.z = 0.68;
+    pFrontSheave.add(pHydPistonMesh);
 
-    // Primary Hydraulic Chamber & Actuator Piston Cylinder
-    const pPistonGeo = new THREE.CylinderGeometry(0.96, 0.96, 0.44, 28);
-    pPistonGeo.rotateX(Math.PI / 2);
-    const pPistonMesh = registerMesh(new THREE.Mesh(pPistonGeo), 'hydraulicChamber');
-    pPistonMesh.position.z = 0.42;
-    pSlidingGroup.add(pPistonMesh);
-
-    // B. SECONDARY PULLEY (Output / Driven) at x = SECONDARY_X (+1.35)
+    // B. SECONDARY PULLEY (Output / Driven) at (x = SECONDARY_X, y = PULLEY_Y, z = 0)
     const secondaryGroup = new THREE.Group();
-    secondaryGroup.position.set(SECONDARY_X, 0, 0);
+    secondaryGroup.position.set(SECONDARY_X, PULLEY_Y, 0);
     cvtRoot.add(secondaryGroup);
 
-    // Output Shaft
-    const sShaftGeo = new THREE.CylinderGeometry(0.24, 0.24, 3.8, 24);
+    // Splined Secondary Shaft
+    const sShaftGeo = new THREE.CylinderGeometry(0.25, 0.25, 4.1, 24);
     sShaftGeo.rotateX(Math.PI / 2);
-    const sShaftMesh = registerMesh(new THREE.Mesh(sShaftGeo), 'shaftSteel');
-    secondaryGroup.add(sShaftMesh);
+    secondaryGroup.add(registerMesh(new THREE.Mesh(sShaftGeo), 'shaftSteel'));
 
-    // Secondary Fixed Sheave (Stationary along Z at front, facing rear -Z)
-    const sFixedGeo = createConicalSheaveGeo(-1);
-    const sFixedMesh = registerMesh(new THREE.Mesh(sFixedGeo), 'secondarySheave');
-    sFixedMesh.position.z = 0.38;
-    secondaryGroup.add(sFixedMesh);
+    const sRearSheave = buildSheaveAssembly(-1, 'secondarySheave');
+    const sFrontSheave = buildSheaveAssembly(1, 'secondarySheave');
+    secondaryGroup.add(sRearSheave, sFrontSheave);
 
-    // Secondary Sliding Sheave Holder (Moves along Z with heavy clamping spring)
-    const sSlidingGroup = new THREE.Group();
-    secondaryGroup.add(sSlidingGroup);
+    // Secondary Hydraulic Clamping Cylinder & Helical Preload Spring (on Rear -Z side)
+    const sHydCylinderGeo = new THREE.CylinderGeometry(1.06, 1.06, 0.48, 32, 1, true);
+    sHydCylinderGeo.rotateX(Math.PI / 2);
+    const sHydCylinderMesh = registerMesh(new THREE.Mesh(sHydCylinderGeo), 'hydraulicChamber');
+    sHydCylinderMesh.position.z = -0.82;
+    sRearSheave.add(sHydCylinderMesh);
 
-    const sSlidingGeo = createConicalSheaveGeo(1);
-    const sSlidingMesh = registerMesh(new THREE.Mesh(sSlidingGeo), 'secondarySheave');
-    sSlidingGroup.add(sSlidingMesh);
-
-    // Secondary Hydraulic Chamber & Diaphragm Preload Clamping Spring
-    const sSpringChamberGeo = new THREE.CylinderGeometry(1.02, 1.02, 0.48, 28);
-    sSpringChamberGeo.rotateX(Math.PI / 2);
-    const sSpringChamberMesh = registerMesh(new THREE.Mesh(sSpringChamberGeo), 'hydraulicChamber');
-    sSpringChamberMesh.position.z = -0.44;
-    sSlidingGroup.add(sSpringChamberMesh);
+    const sHydPistonGeo = new THREE.CylinderGeometry(1.00, 1.00, 0.16, 32);
+    sHydPistonGeo.rotateX(Math.PI / 2);
+    const sHydPistonMesh = registerMesh(new THREE.Mesh(sHydPistonGeo), 'hydraulicPiston');
+    sHydPistonMesh.position.z = -0.68;
+    sRearSheave.add(sHydPistonMesh);
 
     // ------------------------------------------------------------------------
-    // 4. VAN DOORNE STEEL PUSH-BELT & TENSION BANDS
+    // 4. VAN DOORNE STEEL PUSH-BELT (PROPERLY WEDGED ACROSS Z-AXIS!)
     // ------------------------------------------------------------------------
     const beltGroup = new THREE.Group();
     cvtRoot.add(beltGroup);
 
-    // Model 60 individual interlocking trapezoidal steel push-blocks
-    const blockCount = 60;
+    // Each Van Doorne steel push-element has:
+    //   - Width along Z-axis (wedging between the -Z and +Z conical sheaves):
+    //     wider at outer radius (+Y in local frame, 2 * BELT_HALF_WIDTH = 0.44)
+    //     and narrower at inner radius (-Y in local frame, 0.30) matching SHEAVE_SLOPE!
+    //   - Thin lamination thickness (0.048) along local X-axis (direction of belt travel)!
     const blockShape = new THREE.Shape();
-    // Trapezoidal cross-section matching the 11-deg sheave angle
-    const bwTop = 0.32;
-    const bwBottom = 0.22;
-    const bh = 0.24;
-    blockShape.moveTo(-bwTop * 0.5, bh * 0.5);
-    blockShape.lineTo(bwTop * 0.5, bh * 0.5);
-    blockShape.lineTo(bwBottom * 0.5, -bh * 0.5);
-    blockShape.lineTo(-bwBottom * 0.5, -bh * 0.5);
+    const wOuter = BELT_HALF_WIDTH * 1.12; // +0.246
+    const wInner = BELT_HALF_WIDTH * 0.72; // +0.158
+    const hRadial = 0.26;
+    blockShape.moveTo(-wOuter, hRadial * 0.5);
+    blockShape.lineTo(-wOuter * 0.42, hRadial * 0.5);
+    // Saddle slot for the left & right laminated maraging steel bands
+    blockShape.lineTo(-wOuter * 0.42, hRadial * 0.08);
+    blockShape.lineTo(wOuter * 0.42, hRadial * 0.08);
+    blockShape.lineTo(wOuter * 0.42, hRadial * 0.5);
+    blockShape.lineTo(wOuter, hRadial * 0.5);
+    // Angled conical V-flanks that grip the 11-deg pulley sheaves
+    blockShape.lineTo(wInner, -hRadial * 0.5);
+    blockShape.lineTo(-wInner, -hRadial * 0.5);
     blockShape.closePath();
 
-    // Central slot cutout for the laminated steel tension bands
-    const slotPath = new THREE.Path();
-    slotPath.moveTo(-0.09, 0.04);
-    slotPath.lineTo(0.09, 0.04);
-    slotPath.lineTo(0.09, 0.12);
-    slotPath.lineTo(-0.09, 0.12);
-    slotPath.closePath();
-    blockShape.holes.push(slotPath);
-
     const pushBlockGeo = new THREE.ExtrudeGeometry(blockShape, {
-      depth: 0.055,
+      depth: 0.044,
       bevelEnabled: true,
       bevelSegments: 2,
       steps: 1,
-      bevelSize: 0.008,
-      bevelThickness: 0.008
+      bevelSize: 0.005,
+      bevelThickness: 0.005
     });
-    pushBlockGeo.translate(0, 0, -0.0275);
+    pushBlockGeo.translate(0, 0, -0.022);
+    // Rotate so the V-wedge width (originally X) spans the Z-axis,
+    // and the thin extrusion depth (originally Z) points along local +X (belt tangent)!
+    pushBlockGeo.rotateY(Math.PI / 2);
 
+    const blockCount = 72;
     const pushBlockMeshes = [];
     for (let b = 0; b < blockCount; b++) {
       const bMesh = registerMesh(new THREE.Mesh(pushBlockGeo), 'steelBeltBlock', false);
@@ -478,168 +598,253 @@ export default function CvtSim({ theme = 'dark' }) {
       pushBlockMeshes.push(bMesh);
     }
 
-    // 2 Laminated Flexible Steel Tension Bands threading through the blocks
-    const leftBandMesh = registerMesh(new THREE.Mesh(new THREE.BufferGeometry()), 'steelBand', false);
-    const rightBandMesh = registerMesh(new THREE.Mesh(new THREE.BufferGeometry()), 'steelBand', false);
-    beltGroup.add(leftBandMesh, rightBandMesh);
+    // 2 Laminated High-Tensile Maraging Steel Tension Loops (Nested 12-layer steel bands)
+    const rearSteelBandMesh = registerMesh(new THREE.Mesh(new THREE.BufferGeometry()), 'steelBand', false);
+    const frontSteelBandMesh = registerMesh(new THREE.Mesh(new THREE.BufferGeometry()), 'steelBand', false);
+    beltGroup.add(rearSteelBandMesh, frontSteelBandMesh);
 
     // ------------------------------------------------------------------------
-    // 5. TORQUE CONVERTER, REVERSER UNIT, FINAL REDUCTION & DIFFERENTIAL
+    // 5. SCULPTED TORQUE CONVERTER & PLANETARY REVERSER (ON INPUT SHAFT -Z)
     // ------------------------------------------------------------------------
     const torqueConverterGroup = new THREE.Group();
-    torqueConverterGroup.position.set(PRIMARY_X, 0, -2.15);
+    torqueConverterGroup.position.set(PRIMARY_X, PULLEY_Y, -2.35);
     cvtRoot.add(torqueConverterGroup);
 
-    // Impeller & Turbine Round Housing
-    const tcGeo = new THREE.SphereGeometry(1.28, 32, 20, 0, Math.PI * 2, 0, Math.PI * 0.65);
-    tcGeo.rotateX(Math.PI / 2);
-    const tcMesh = registerMesh(new THREE.Mesh(tcGeo), 'torqueConverter');
-    torqueConverterGroup.add(tcMesh);
+    // Contoured Automotive Torque Converter Torus Shell (Axis along Z!)
+    const tcLathePts = [
+      new THREE.Vector2(0.26, -0.42),
+      new THREE.Vector2(0.92, -0.40),
+      new THREE.Vector2(1.26, -0.22),
+      new THREE.Vector2(1.32, 0.0),
+      new THREE.Vector2(1.24, 0.24),
+      new THREE.Vector2(0.88, 0.38),
+      new THREE.Vector2(0.28, 0.40)
+    ];
+    const tcShellGeo = new THREE.LatheGeometry(tcLathePts, 36);
+    tcShellGeo.rotateX(Math.PI / 2);
+    torqueConverterGroup.add(registerMesh(new THREE.Mesh(tcShellGeo), 'torqueConverter'));
 
-    const tcHubGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.35, 20);
-    tcHubGeo.rotateX(Math.PI / 2);
-    torqueConverterGroup.add(registerMesh(new THREE.Mesh(tcHubGeo), 'shaftSteel'));
+    // Starter Ring Gear around Torque Converter Perimeter
+    const tcRingGearGeo = createToothedGearGeo({
+      pitchRadius: 1.36,
+      teethCount: 42,
+      faceWidth: 0.14,
+      boreRadius: 1.20,
+      helicalAngle: 0,
+      hasLighteningHoles: false
+    });
+    const tcRingGearMesh = registerMesh(new THREE.Mesh(tcRingGearGeo), 'hydraulicPiston', false);
+    tcRingGearMesh.position.z = -0.12;
+    torqueConverterGroup.add(tcRingGearMesh);
 
-    // Final Drive Reduction Gear & Differential on Secondary Shaft (+Z side)
+    // 12 External Cooling & Stiffening Ribs on Torque Converter Shell
+    const tcFinGeo = new THREE.BoxGeometry(0.55, 0.05, 0.12);
+    for (let f = 0; f < 12; f++) {
+      const fa = (f / 12) * Math.PI * 2;
+      const fin = registerMesh(new THREE.Mesh(tcFinGeo), 'sheaveRib', false);
+      fin.position.set(Math.cos(fa) * 0.78, Math.sin(fa) * 0.78, 0.36);
+      fin.rotation.z = fa;
+      torqueConverterGroup.add(fin);
+    }
+
+    // ------------------------------------------------------------------------
+    // 6. TOOTHED HELICAL FINAL REDUCTION GEARSET & FRONT DIFFERENTIAL (+Z)
+    // ------------------------------------------------------------------------
     const finalDriveGroup = new THREE.Group();
     cvtRoot.add(finalDriveGroup);
 
-    // Helical Pinion on Secondary Shaft
-    const sPinionGeo = new THREE.CylinderGeometry(0.48, 0.48, 0.42, 24);
-    sPinionGeo.rotateX(Math.PI / 2);
-    const sPinionMesh = registerMesh(new THREE.Mesh(sPinionGeo), 'gears');
-    sPinionMesh.position.set(SECONDARY_X, 0, 1.85);
-    finalDriveGroup.add(sPinionMesh);
+    // A. Output Reduction Pinion on Secondary Shaft (at x = SECONDARY_X, y = PULLEY_Y, z = +1.92)
+    const secPinionGroup = new THREE.Group();
+    secPinionGroup.position.set(SECONDARY_X, PULLEY_Y, 1.92);
+    finalDriveGroup.add(secPinionGroup);
 
-    // Large Final Drive Crown Gear & Differential Case at (x = 0.0, y = -1.25, z = 1.85)
+    const secPinionGeo = createToothedGearGeo({
+      pitchRadius: 0.56,
+      teethCount: 16,
+      faceWidth: 0.36,
+      boreRadius: 0.24,
+      helicalAngle: 0.14,
+      hasLighteningHoles: false
+    });
+    secPinionGroup.add(registerMesh(new THREE.Mesh(secPinionGeo), 'gears'));
+
+    // B. Differential Crown Wheel & Open Differential Spider Cage
+    // Placed at (x = 0.35, y = -1.15, z = +1.92) so distance to Secondary Shaft is
+    // sqrt((1.65 - 0.35)^2 + (0.25 - (-1.15))^2) = sqrt(1.69 + 1.96) = 1.91 units!
+    // Pinion R (0.56) + Crown Wheel R (1.35) = 1.91 units -> Exact tooth mesh!
     const diffGroup = new THREE.Group();
-    diffGroup.position.set(0.0, -1.25, 1.85);
+    diffGroup.position.set(0.35, -1.15, 1.92);
     finalDriveGroup.add(diffGroup);
 
-    const crownGearGeo = new THREE.CylinderGeometry(1.42, 1.42, 0.36, 36);
-    crownGearGeo.rotateX(Math.PI / 2);
-    const crownGearMesh = registerMesh(new THREE.Mesh(crownGearGeo), 'gears');
-    diffGroup.add(crownGearMesh);
+    const crownWheelGeo = createToothedGearGeo({
+      pitchRadius: 1.35,
+      teethCount: 38,
+      faceWidth: 0.36,
+      boreRadius: 0.52,
+      helicalAngle: -0.14,
+      hasLighteningHoles: true
+    });
+    diffGroup.add(registerMesh(new THREE.Mesh(crownWheelGeo), 'gears'));
 
-    const diffAxleGeo = new THREE.CylinderGeometry(0.18, 0.18, 4.4, 20);
-    diffAxleGeo.rotateZ(Math.PI / 2);
-    diffGroup.add(registerMesh(new THREE.Mesh(diffAxleGeo), 'shaftSteel'));
+    // Differential Carrier Cage & Cross-Pin
+    const carrierCageGeo = new THREE.CylinderGeometry(0.56, 0.56, 0.85, 24);
+    carrierCageGeo.rotateX(Math.PI / 2);
+    diffGroup.add(registerMesh(new THREE.Mesh(carrierCageGeo), 'diffCage'));
+
+    // Left & Right CV Drive Axles exiting Differential along Z
+    const axleGeo = new THREE.CylinderGeometry(0.20, 0.20, 2.6, 20);
+    axleGeo.rotateX(Math.PI / 2);
+    diffGroup.add(registerMesh(new THREE.Mesh(axleGeo), 'shaftSteel'));
 
     // ------------------------------------------------------------------------
-    // 6. SCULPTED CAST-ALUMINUM CVT HOUSING & SECTION CUTAWAY
+    // 7. SCULPTED ORGANIC CAST-ALUMINUM CVT TRANSMISSION HOUSING
     // ------------------------------------------------------------------------
     const casingGroup = new THREE.Group();
     cvtRoot.add(casingGroup);
 
-    // Hourglass dual-pulley casing profile wrapping around Primary and Secondary
-    const casingLen = 4.2;
+    // Sculpted multi-lobe transaxle casing wrapping around Primary Pulley, Secondary Pulley, and Differential
     const casingShape = new THREE.Shape();
-    casingShape.moveTo(PRIMARY_X, 1.85);
-    casingShape.quadraticCurveTo(0, 1.15, SECONDARY_X, 1.85);
-    casingShape.absarc(SECONDARY_X, 0, 1.85, Math.PI * 0.5, -Math.PI * 0.5, true);
-    casingShape.quadraticCurveTo(0, -1.15, PRIMARY_X, -1.85);
-    casingShape.absarc(PRIMARY_X, 0, 1.85, -Math.PI * 0.5, Math.PI * 0.5, true);
+    casingShape.moveTo(PRIMARY_X - 1.85, PULLEY_Y);
+    casingShape.absarc(PRIMARY_X, PULLEY_Y, 1.85, Math.PI, Math.PI * 0.38, true);
+    casingShape.quadraticCurveTo(0, PULLEY_Y + 1.42, SECONDARY_X - 0.65, PULLEY_Y + 1.72);
+    casingShape.absarc(SECONDARY_X, PULLEY_Y, 1.85, Math.PI * 0.62, -Math.PI * 0.22, true);
+    casingShape.quadraticCurveTo(1.85, -1.95, 0.35, -2.65);
+    casingShape.quadraticCurveTo(-0.95, -2.65, PRIMARY_X - 1.15, -1.35);
+    casingShape.absarc(PRIMARY_X, PULLEY_Y, 1.85, -Math.PI * 0.68, -Math.PI, true);
 
-    const backCasingGeo = new THREE.ExtrudeGeometry(casingShape, {
-      depth: casingLen * 0.55,
+    const rearCaseGeo = new THREE.ExtrudeGeometry(casingShape, {
+      depth: 2.85,
       bevelEnabled: true,
       bevelSegments: 3,
       steps: 1,
-      bevelSize: 0.06,
-      bevelThickness: 0.06
+      bevelSize: 0.05,
+      bevelThickness: 0.05
     });
-    backCasingGeo.translate(0, 0, -casingLen * 0.55);
-    const backCasingMesh = registerMesh(new THREE.Mesh(backCasingGeo), 'casing');
-    casingGroup.add(backCasingMesh);
+    rearCaseGeo.translate(0, 0, -2.85);
+    const rearCasingMesh = registerMesh(new THREE.Mesh(rearCaseGeo), 'casing');
+    casingGroup.add(rearCasingMesh);
 
-    const frontCasingGeo = new THREE.ExtrudeGeometry(casingShape, {
-      depth: casingLen * 0.45,
+    const frontCaseGeo = new THREE.ExtrudeGeometry(casingShape, {
+      depth: 2.45,
       bevelEnabled: true,
       bevelSegments: 3,
       steps: 1,
-      bevelSize: 0.06,
-      bevelThickness: 0.06
+      bevelSize: 0.05,
+      bevelThickness: 0.05
     });
-    frontCasingGeo.translate(0, 0, 0.02);
-    const frontCasingMesh = registerMesh(new THREE.Mesh(frontCasingGeo), 'casing');
+    frontCaseGeo.translate(0, 0, 0.02);
+    const frontCasingMesh = registerMesh(new THREE.Mesh(frontCaseGeo), 'casing');
     casingGroup.add(frontCasingMesh);
 
-    // Mechatronic Valve Body & Fluid Oil Pan under the transmission
-    const valveBodyGeo = new THREE.BoxGeometry(2.4, 0.52, 2.2);
-    const valveBodyMesh = registerMesh(new THREE.Mesh(valveBodyGeo), 'casing', false);
-    valveBodyMesh.position.set(0, -2.15, 0);
-    casingGroup.add(valveBodyMesh);
+    // Finned Mechatronic Electro-Hydraulic Valve Body Sump at the bottom of the casing
+    const sumpGeo = new THREE.BoxGeometry(2.85, 0.36, 3.6);
+    const sumpMesh = registerMesh(new THREE.Mesh(sumpGeo), 'casing', false);
+    sumpMesh.position.set(-0.25, -2.68, -0.35);
+    casingGroup.add(sumpMesh);
 
     // ------------------------------------------------------------------------
-    // 7. REAL-TIME BELT KINEMATICS, RATIO CALCULATIONS & ANIMATION LOOP
+    // 8. EXACT CONSTANT-LENGTH BELT KINEMATICS & ANIMATION LOOP
     // ------------------------------------------------------------------------
-    // Calculate Primary & Secondary running radii for constant belt length
+    // Given target CVT Ratio = R2 / R1, solve for Primary Pitch Radius R1 and Secondary Pitch Radius R2
+    // so that total belt wrap length L remains constant!
     const computePulleyRadii = (ratioVal) => {
-      // ratio = R2 / R1  ->  R2 = ratio * R1
-      // Constant belt length constraint: R1 + R2 + deltaTerm ≈ Const
-      // For ratio range 2.60 (low) down to 0.45 (overdrive):
       const minR = 0.56;
       const maxR = 1.46;
-      // Normalizing ratioVal from 2.60 down to 0.45
-      const t = Math.max(0, Math.min(1, (2.60 - ratioVal) / (2.60 - 0.45)));
+      const t = Math.max(0, Math.min(1, (2.50 - ratioVal) / (2.50 - 0.45)));
       const r1 = minR + t * (maxR - minR);
       const r2 = maxR - t * (maxR - minR);
       return { r1, r2 };
     };
 
-    // Calculate closed 2D loop path of the belt around the two pulleys
-    const generateBeltPathPoints = (r1, r2, numSamples = 120) => {
-      const pCenter = new THREE.Vector2(PRIMARY_X, 0);
-      const sCenter = new THREE.Vector2(SECONDARY_X, 0);
-      const dist = SHAFT_PULLEY_DIST;
+    // Build exact C1-smooth exterior tangent loop around Primary (X1, Y) and Secondary (X2, Y)
+    // Going Clockwise:
+    //   1. Top Straight Tangent (Primary Top -> Secondary Top)
+    //   2. Secondary Right Outer Arc (Top -> +X Outer Right -> Bottom)
+    //   3. Bottom Straight Tangent (Secondary Bottom -> Primary Bottom)
+    //   4. Primary Left Outer Arc (Bottom -> -X Outer Left -> Top)
+    const sampleBeltLoop = (r1, r2, uRaw) => {
+      const u = ((uRaw % 1) + 1) % 1;
+      const C = SHAFT_DIST;
+      const sinGamma = Math.max(-0.95, Math.min(0.95, (r1 - r2) / C));
+      const gamma = Math.asin(sinGamma);
+      const cosGamma = Math.cos(gamma);
 
-      // Tangent angle due to difference in radii
-      const sinTheta = Math.max(-0.99, Math.min(0.99, (r2 - r1) / dist));
-      const cosTheta = Math.sqrt(1 - sinTheta * sinTheta);
-      const theta = Math.asin(sinTheta);
+      // Outward normal angles at tangent points:
+      // Top normal angle = pi/2 - gamma
+      // Bottom normal angle = -pi/2 + gamma
+      const topAngle = Math.PI * 0.5 - gamma;
+      const botAngle = -Math.PI * 0.5 + gamma;
 
-      // Top tangent line connects pTop to sTop
-      // Normal vector to tangent line is (-sinTheta, cosTheta)
-      const pTop = new THREE.Vector2(pCenter.x - r1 * sinTheta, pCenter.y + r1 * cosTheta);
-      const sTop = new THREE.Vector2(sCenter.x - r2 * sinTheta, sCenter.y + r2 * cosTheta);
+      const p1Top = new THREE.Vector2(
+        PRIMARY_X + Math.cos(topAngle) * r1,
+        PULLEY_Y + Math.sin(topAngle) * r1
+      );
+      const p2Top = new THREE.Vector2(
+        SECONDARY_X + Math.cos(topAngle) * r2,
+        PULLEY_Y + Math.sin(topAngle) * r2
+      );
+      const p2Bot = new THREE.Vector2(
+        SECONDARY_X + Math.cos(botAngle) * r2,
+        PULLEY_Y + Math.sin(botAngle) * r2
+      );
+      const p1Bot = new THREE.Vector2(
+        PRIMARY_X + Math.cos(botAngle) * r1,
+        PULLEY_Y + Math.sin(botAngle) * r1
+      );
 
-      // Bottom tangent line connects sBottom to pBottom
-      const sBottom = new THREE.Vector2(sCenter.x + r2 * sinTheta, sCenter.y - r2 * cosTheta);
-      const pBottom = new THREE.Vector2(pCenter.x + r1 * sinTheta, pCenter.y - r1 * cosTheta);
+      // Segment lengths:
+      const lenTop = C * cosGamma;
+      const sweep2 = topAngle - botAngle; // pi - 2*gamma
+      const lenArc2 = r2 * sweep2;
+      const lenBot = C * cosGamma;
+      const sweep1 = 2 * Math.PI - sweep2; // pi + 2*gamma
+      const lenArc1 = r1 * sweep1;
+      const totalLen = lenTop + lenArc2 + lenBot + lenArc1;
 
-      const pts = [];
-      // 1. Primary arc from bottom to top (counter-clockwise wrap)
-      const pStartAngle = -Math.PI / 2 + theta;
-      const pEndAngle = Math.PI / 2 + theta;
-      const pSteps = Math.round(numSamples * 0.35);
-      for (let i = 0; i <= pSteps; i++) {
-        const a = pStartAngle + (pEndAngle - pStartAngle) * (i / pSteps);
-        pts.push(new THREE.Vector3(pCenter.x - Math.cos(a) * r1, pCenter.y + Math.sin(a) * r1, 0));
+      const d = u * totalLen;
+      if (d < lenTop) {
+        // 1. Top Tangent (Primary Top -> Secondary Top)
+        const f = d / lenTop;
+        return {
+          x: p1Top.x + (p2Top.x - p1Top.x) * f,
+          y: p1Top.y + (p2Top.y - p1Top.y) * f,
+          tx: cosGamma,
+          ty: -sinGamma
+        };
       }
-
-      // 2. Top straight tangent from Primary to Secondary
-      const tSteps = Math.round(numSamples * 0.15);
-      for (let i = 1; i <= tSteps; i++) {
-        const u = i / tSteps;
-        pts.push(new THREE.Vector3(pTop.x + (sTop.x - pTop.x) * u, pTop.y + (sTop.y - pTop.y) * u, 0));
+      const d2 = d - lenTop;
+      if (d2 < lenArc2) {
+        // 2. Secondary Right Outer Arc (Clockwise from topAngle down to botAngle)
+        const f = d2 / lenArc2;
+        const ang = topAngle - f * sweep2;
+        return {
+          x: SECONDARY_X + Math.cos(ang) * r2,
+          y: PULLEY_Y + Math.sin(ang) * r2,
+          tx: Math.sin(ang),
+          ty: -Math.cos(ang)
+        };
       }
-
-      // 3. Secondary arc from top to bottom
-      const sStartAngle = Math.PI / 2 + theta;
-      const sEndAngle = -Math.PI / 2 + theta;
-      const sSteps = Math.round(numSamples * 0.35);
-      for (let i = 0; i <= sSteps; i++) {
-        const a = sStartAngle + (sEndAngle - sStartAngle) * (i / sSteps);
-        pts.push(new THREE.Vector3(sCenter.x + Math.cos(a) * r2, sCenter.y + Math.sin(a) * r2, 0));
+      const d3 = d2 - lenArc2;
+      if (d3 < lenBot) {
+        // 3. Bottom Tangent (Secondary Bottom -> Primary Bottom)
+        const f = d3 / lenBot;
+        return {
+          x: p2Bot.x + (p1Bot.x - p2Bot.x) * f,
+          y: p2Bot.y + (p1Bot.y - p2Bot.y) * f,
+          tx: -cosGamma,
+          ty: -sinGamma
+        };
       }
-
-      // 4. Bottom straight tangent from Secondary back to Primary
-      for (let i = 1; i < tSteps; i++) {
-        const u = i / tSteps;
-        pts.push(new THREE.Vector3(sBottom.x + (pBottom.x - sBottom.x) * u, sBottom.y + (pBottom.y - sBottom.y) * u, 0));
-      }
-
-      return pts;
+      // 4. Primary Left Outer Arc (Clockwise from botAngle + 2*pi down to topAngle)
+      const d4 = d3 - lenBot;
+      const f = d4 / lenArc1;
+      const ang = botAngle + Math.PI * 2 - f * sweep1;
+      return {
+        x: PRIMARY_X + Math.cos(ang) * r1,
+        y: PULLEY_Y + Math.sin(ang) * r1,
+        tx: Math.sin(ang),
+        ty: -Math.cos(ang)
+      };
     };
 
     const updateMaterialModes = () => {
@@ -691,15 +896,16 @@ export default function CvtSim({ theme = 'dark' }) {
       torqueConverterGroup.visible = sTc;
       finalDriveGroup.visible = sFd;
 
-      // Exploded View Offsets
+      // Exploded View Separation
       frontCasingMesh.position.z = exp * 1.45;
-      backCasingMesh.position.z = -exp * 1.25;
-      torqueConverterGroup.position.z = -2.15 - exp * 0.95;
-      finalDriveGroup.position.z = exp * 0.85;
+      rearCasingMesh.position.z = -exp * 1.25;
+      torqueConverterGroup.position.z = -2.35 - exp * 1.05;
+      finalDriveGroup.position.z = exp * 0.95;
     };
 
     let lastTime = performance.now();
     let beltPhase = 0;
+    let currentRatio = simParams.current.cvtRatio;
     let uiCounter = 0;
     let animationFrameId;
 
@@ -714,66 +920,83 @@ export default function CvtSim({ theme = 'dark' }) {
         engineRpm: engRpm,
         throttlePct: throttle,
         driveMode: mode,
-        cvtRatio: targetCvtRatio,
+        cvtRatio: userRatio,
         isVirtualMode: isVirt,
         virtualGear: vGear,
         autoRotateCam: autoCam
       } = simParams.current;
 
-      // Calculate active ratio based on Drive Mode & Virtual Gear
-      let activeRatio = targetCvtRatio;
+      // Smoothly interpolate active CVT Ratio
+      let targetRatio = userRatio;
       if (isVirt) {
-        const vg = VIRTUAL_7_SPEEDS.find((v) => v.gear === vGear) || VIRTUAL_7_SPEEDS[3];
-        activeRatio = vg.ratio;
+        const vg = VIRTUAL_7_SPEEDS.find((v) => v.gear === vGear) || VIRTUAL_7_SPEEDS[2];
+        targetRatio = vg.ratio;
       }
+      currentRatio += (targetRatio - currentRatio) * Math.min(1, dt * 10);
 
-      const { r1, r2 } = computePulleyRadii(activeRatio);
+      const { r1, r2 } = computePulleyRadii(currentRatio);
 
-      // Move primary & secondary sliding sheaves along Z based on cone slope
-      const deltaZPrimary = (r1 - 1.0) * TAN_CONE * 2.2;
-      const deltaZSecondary = (r2 - 1.0) * TAN_CONE * 2.2;
-      pSlidingGroup.position.z = -deltaZPrimary;
-      sSlidingGroup.position.z = deltaZSecondary;
+      // EXACT SHEAVE AXIAL CLAMPING POSITIONS:
+      // At running radius R, the conical face of a sheave is at local |z| = (R - SHEAVE_INNER_R) * SHEAVE_SLOPE.
+      // For the conical face to touch the belt flank at |z| = BELT_HALF_WIDTH:
+      //   zSheaveOffset(R) = BELT_HALF_WIDTH - (R - SHEAVE_INNER_R) * SHEAVE_SLOPE
+      // When R increases, zSheaveOffset decreases (sheaves squeeze together!).
+      const pOffset = BELT_HALF_WIDTH - (r1 - SHEAVE_INNER_R) * SHEAVE_SLOPE;
+      const sOffset = BELT_HALF_WIDTH - (r2 - SHEAVE_INNER_R) * SHEAVE_SLOPE;
 
-      // Rotational speeds
-      const inOmega = playing && mode !== 'P' && mode !== 'N'
-        ? ((engRpm * 2 * Math.PI) / 60) * 0.085
-        : 0;
-      const outOmega = inOmega / activeRatio;
+      pRearSheave.position.z = -pOffset;
+      pFrontSheave.position.z = pOffset;
+
+      sRearSheave.position.z = -sOffset;
+      sFrontSheave.position.z = sOffset;
+
+      // Rotational kinematics (Clockwise rotation around Z means negative Z angle)
+      const dirSign = mode === 'R' ? 1 : -1;
+      const isEngaged = playing && mode !== 'P' && mode !== 'N';
+      const inOmega = isEngaged ? dirSign * ((engRpm * 2 * Math.PI) / 60) * 0.08 : 0;
+      const outOmega = inOmega / currentRatio;
+
+      // Torque converter always spins with engine when playing
+      const tcOmega = playing ? -((engRpm * 2 * Math.PI) / 60) * 0.08 : 0;
+      torqueConverterGroup.rotation.z += tcOmega * dt;
 
       primaryGroup.rotation.z += inOmega * dt;
-      // Secondary spins in same direction via wrap-around belt
       secondaryGroup.rotation.z += outOmega * dt;
-      diffGroup.rotation.z -= (outOmega / 3.8) * dt;
+      secPinionGroup.rotation.z = secondaryGroup.rotation.z;
+      // Crown wheel (38T) driven by Secondary Pinion (16T) in opposite direction
+      diffGroup.rotation.z -= outOmega * (16 / 38) * dt;
 
-      // Animate Van Doorne Steel Belt blocks along the exact closed path
-      const beltPts = generateBeltPathPoints(r1, r2, 120);
-      const beltCurve = new THREE.CatmullRomCurve3(beltPts, true);
-
-      if (playing && mode !== 'P' && mode !== 'N') {
-        const beltSpeed = (inOmega * r1) * 0.22;
-        beltPhase = (beltPhase + dt * beltSpeed) % 1.0;
+      // Advance Steel Push-Belt along the loop at exact linear pitch speed v = omega_1 * r_1
+      if (isEngaged) {
+        const linearSpeed = (-inOmega * r1) * 0.105;
+        beltPhase = ((beltPhase + linearSpeed * dt) % 1 + 1) % 1;
       }
+
+      // Position all 72 Steel Push-Blocks & build the 2 Laminated Steel Bands
+      const bandSamples = 96;
+      const bandCurvePts = [];
+      for (let s = 0; s < bandSamples; s++) {
+        const sp = sampleBeltLoop(r1, r2, s / bandSamples);
+        bandCurvePts.push(new THREE.Vector3(sp.x, sp.y, 0));
+      }
+      const bandCurve = new THREE.CatmullRomCurve3(bandCurvePts, true);
+
+      rearSteelBandMesh.geometry.dispose();
+      frontSteelBandMesh.geometry.dispose();
+      const bandTubeGeo = new THREE.TubeGeometry(bandCurve, 96, 0.032, 8, true);
+      rearSteelBandMesh.geometry = bandTubeGeo;
+      frontSteelBandMesh.geometry = bandTubeGeo.clone();
+      rearSteelBandMesh.position.z = -0.13;
+      frontSteelBandMesh.position.z = 0.13;
 
       for (let b = 0; b < blockCount; b++) {
-        const u = (beltPhase + b / blockCount) % 1.0;
-        const pt = beltCurve.getPoint(u);
-        const tangent = beltCurve.getTangent(u);
+        const u = (beltPhase + b / blockCount) % 1;
+        const sp = sampleBeltLoop(r1, r2, u);
         const bMesh = pushBlockMeshes[b];
-        bMesh.position.copy(pt);
-        // Align block perpendicular to tangent
-        const angle = Math.atan2(tangent.y, tangent.x);
-        bMesh.rotation.z = angle - Math.PI / 2;
+        bMesh.position.set(sp.x, sp.y, 0);
+        // Align local +X (block tangent) with (tx, ty) and local +Y (outward normal) with (-ty, tx)
+        bMesh.rotation.z = Math.atan2(sp.ty, sp.tx);
       }
-
-      // Update the 2 Laminated Steel Tension Bands geometry along the belt path
-      leftBandMesh.geometry.dispose();
-      rightBandMesh.geometry.dispose();
-      const bandGeo = new THREE.TubeGeometry(beltCurve, 90, 0.024, 8, true);
-      leftBandMesh.geometry = bandGeo;
-      rightBandMesh.geometry = bandGeo.clone();
-      leftBandMesh.position.z = -0.06;
-      rightBandMesh.position.z = 0.06;
 
       updateMaterialModes();
 
@@ -782,25 +1005,27 @@ export default function CvtSim({ theme = 'dark' }) {
       controls.update();
       renderer.render(scene, camera);
 
-      // Update React Telemetry every ~6 frames
+      // Update React Telemetry HUD every ~6 frames
       uiCounter++;
       if (uiCounter % 6 === 0) {
         const actualInRpm = mode === 'P' || mode === 'N' ? Math.round(engRpm * 0.45) : engRpm;
-        const actualOutRpm = mode === 'P' || mode === 'N' ? 0 : Math.round(actualInRpm / activeRatio);
-        const engineTorqueNm = Math.round(180 + (throttle / 100) * 120);
-        const actualOutTorque = mode === 'P' || mode === 'N' ? 0 : Math.round(engineTorqueNm * activeRatio * 0.94);
-        const wheelRpm = actualOutRpm / 3.8;
+        const actualOutRpm =
+          mode === 'P' || mode === 'N' ? 0 : Math.round(actualInRpm / currentRatio);
+        const engineTorqueNm = Math.round(180 + (throttle / 100) * 140);
+        const actualOutTorque =
+          mode === 'P' || mode === 'N' ? 0 : Math.round(engineTorqueNm * currentRatio * 0.95);
+        const wheelRpm = actualOutRpm * (16 / 38);
         const speedKmh = Math.round((wheelRpm * 2 * Math.PI * 0.31 * 60) / 1000);
-        const clampPressure = Math.round(28 + (throttle / 100) * 26 + (activeRatio > 1.5 ? 12 : 0));
+        const clampPressure = Math.round(28 + (throttle / 100) * 26 + (currentRatio > 1.5 ? 14 : 0));
 
         setTelemetry({
           inputRpm: actualInRpm,
-          outputRpm: actualOutRpm,
-          actualRatio: +activeRatio.toFixed(2),
+          outputRpm: mode === 'R' ? -actualOutRpm : actualOutRpm,
+          actualRatio: +currentRatio.toFixed(2),
           outputTorqueNm: actualOutTorque,
           roadSpeedKmh: Math.max(0, speedKmh),
-          primaryRadius: +(r1 * 85).toFixed(1),
-          secondaryRadius: +(r2 * 85).toFixed(1),
+          primaryDiameterMm: Math.round(r1 * 135),
+          secondaryDiameterMm: Math.round(r2 * 135),
           clampPressureBar: clampPressure
         });
       }
@@ -857,12 +1082,12 @@ export default function CvtSim({ theme = 'dark' }) {
               className="m-0 text-[1.75rem] font-semibold leading-none tracking-[-0.03em] tabular-nums text-[#fb6514]"
               aria-label={`Rasio CVT ${telemetry.actualRatio} banding 1`}
             >
-              {telemetry.actualRatio} : 1
+              {telemetry.actualRatio.toFixed(2)} : 1
             </p>
           </div>
 
           <p className="m-0 text-base leading-relaxed">
-            Transmisi otomatis variabel kontinu sabuk baja Van Doorne. Mentransmisikan torsi tanpa jeda gigi melalui perubahan diameter hidrolis puli primer dan sekunder.
+            Transmisi otomatis variabel kontinu sabuk baja Van Doorne. Piringan kerucut primer (biru) dan sekunder (hijau) bergeser secara hidrolis untuk mengubah diameter sabuk tanpa hentakan gigi.
           </p>
 
           {/* Drive Mode Selector Buttons: P - R - N - D - S */}
@@ -917,22 +1142,22 @@ export default function CvtSim({ theme = 'dark' }) {
           <div className="grid grid-cols-2 gap-2">
             {[
               {
-                label: 'Putaran Primer (In)',
+                label: 'Puli primer (In)',
                 value: isPlaying ? telemetry.inputRpm : 0,
-                unit: 'rpm'
+                unit: `rpm · Ø${telemetry.primaryDiameterMm}mm`
               },
               {
-                label: 'Putaran Sekunder (Out)',
+                label: 'Puli sekunder (Out)',
                 value: isPlaying ? telemetry.outputRpm : 0,
-                unit: 'rpm'
+                unit: `rpm · Ø${telemetry.secondaryDiameterMm}mm`
               },
               {
-                label: 'Torsi Output',
+                label: 'Torsi output',
                 value: isPlaying ? telemetry.outputTorqueNm : 0,
                 unit: 'Nm'
               },
               {
-                label: 'Tekanan Sabuk / Kecepatan',
+                label: 'Tekanan & kecepatan',
                 value: isPlaying ? `${telemetry.clampPressureBar}` : '0',
                 unit: `bar · ${isPlaying ? telemetry.roadSpeedKmh : 0} km/j`
               }
@@ -1040,7 +1265,7 @@ export default function CvtSim({ theme = 'dark' }) {
             <div className="flex flex-wrap gap-2">
               {[
                 { value: 800, label: '800 idle' },
-                { value: 2000, label: '2000 cruise' },
+                { value: 2200, label: '2200 cruise' },
                 { value: 4000, label: '4000 pass' },
                 { value: 6000, label: '6000 max' }
               ].map((preset) => (
@@ -1069,7 +1294,7 @@ export default function CvtSim({ theme = 'dark' }) {
             </p>
             <SquareRange
               min={0.45}
-              max={2.60}
+              max={2.50}
               step={0.05}
               value={cvtRatio}
               label="CVT Ratio"
@@ -1080,7 +1305,7 @@ export default function CvtSim({ theme = 'dark' }) {
             />
             <div className="flex flex-wrap gap-2">
               {[
-                { value: 2.60, label: '2.60 Low' },
+                { value: 2.50, label: '2.50 Low' },
                 { value: 1.00, label: '1.00 Direct' },
                 { value: 0.45, label: '0.45 Overdrive' }
               ].map((preset) => (
@@ -1176,16 +1401,15 @@ export default function CvtSim({ theme = 'dark' }) {
             type="button"
             onClick={() => {
               setEngineRpm(2200);
-              setCvtRatio(1.0);
+              setCvtRatio(1.45);
               setDriveMode('D');
               setIsVirtualMode(false);
               setExploded(0);
-              setCasingOpacity(0.24);
+              setCasingOpacity(0.22);
               setCutawayMode(true);
               setRenderMode('realistic');
               setShowCasing(true);
               setShowSteelBelt(true);
-              setShowHydraulics(true);
               setShowTorqueConverter(true);
               setShowFinalDrive(true);
               setAutoRotateCam(false);
