@@ -4,6 +4,13 @@ import './landing.css';
 
 const machines = [
   {
+    path: '/cvt',
+    name: 'Steel CVT',
+    spec: '2.60 - 0.45',
+    image: '/lab/generated/v8.png',
+    line: 'Van Doorne steel push-belt continuously variable transmission with hydraulic conical pulleys.'
+  },
+  {
     path: '/gearbox',
     name: 'Gearbox',
     spec: '5-Speed + R',

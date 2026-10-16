@@ -8,10 +8,12 @@ import TwoStrokeEngine from './TwoStrokeEngine.jsx';
 import RotaryEngine from './RotaryEngine.jsx';
 import Inline5Engine from './Inline5Engine.jsx';
 import GearboxSim from './GearboxSim.jsx';
+import CvtSim from './CvtSim.jsx';
 import Landing from './Landing.jsx';
-import { Cpu, Wind, Flame, Droplets, Repeat, Triangle, Gauge, Cog, Sun, Moon } from 'lucide-react';
+import { Cpu, Wind, Flame, Droplets, Repeat, Triangle, Gauge, Cog, Infinity as InfinityIcon, Sun, Moon } from 'lucide-react';
 
 const engines = [
+  { path: '/cvt', label: 'Steel CVT', icon: InfinityIcon, Component: CvtSim },
   { path: '/gearbox', label: 'Gearbox', icon: Cog, Component: GearboxSim },
   { path: '/inline-5', label: 'Inline-5 2.5T', icon: Gauge, Component: Inline5Engine },
   { path: '/rotary', label: 'Rotary', icon: Triangle, Component: RotaryEngine },
